@@ -161,7 +161,6 @@
                     <div class="menu-items-container"></div>
                 </div>
             </div>
-            </div>
         </div>
     </section>
 
@@ -295,9 +294,22 @@
                 <div class="footer-newsletter">
                     <h4>Stay Updated</h4>
                     <p>Subscribe to our newsletter for special offers and events.</p>
-                    <form class="newsletter-form">
-                        <input type="email" placeholder="Your email address" required>
-                        <button type="submit" class="btn btn-primary">Subscribe</button>
+                    <form class="newsletter-form" id="newsletterForm">
+                        <input 
+                            type="email" 
+                            name="email" 
+                            placeholder="Your email address" 
+                            required
+                            aria-label="Your email address"
+                            autocomplete="email"
+                        >
+                        <button type="submit" class="btn btn-primary">
+                            <span class="button-text">Subscribe</span>
+                            <span class="button-loader" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </button>
+                        <p class="form-message" style="display: none; margin-top: 10px;"></p>
                     </form>
                 </div>
             </div>
