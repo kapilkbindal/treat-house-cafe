@@ -1,0 +1,26 @@
+[
+  {
+    "id": "M01",
+    "category": "Chai",
+    "categoryOrder": 1,
+    "name": "Masala Chai",
+    "price": 20,
+    "itemOrder": 1
+  },
+  {
+    "id": "M02",
+    "category": "Chai",
+    "categoryOrder": 1,
+    "name": "Kesar Chai",
+    "price": 25,
+    "itemOrder": 2
+  },
+  {
+    "id": "M03",
+    "category": "Coffee",
+    "categoryOrder": 2,
+    "name": "Cold Coffee",
+    "price": 80,
+    "itemOrder": 1
+  }
+]
