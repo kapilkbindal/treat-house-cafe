@@ -10,15 +10,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     const debugInfo = document.getElementById('debugInfo');
     const menuContainer = document.getElementById('menuContainer');
 
-    let resolvedPlaceId = null;
+    const cartBar = document.getElementById('cartBar');
+    const cartCountEl = document.getElementById('cartCount');
+    const cartTotalEl = document.getElementById('cartTotal');
 
-    // ---------- LOAD MENU ----------
+    let resolvedPlaceId = null;
+    const cart = {};
+
+    function updateCartUI() {
+        const items = Object.values(cart);
+        const count = items.reduce((s, i) => s + i.qty, 0);
+        const total = items.reduce((s, i) => s + i.qty * i.price, 0);
+
+        if (count === 0) {
+            cartBar.classList.add('hidden');
+            return;
+        }
+
+        cartBar.classList.remove('hidden');
+        cartCountEl.textContent = `${count} item${count > 1 ? 's' : ''}`;
+        cartTotalEl.textContent = `₹${total}`;
+    }
+
+    function changeQty(item, delta) {
+        if (!cart[item.id]) {
+            cart[item.id] = { ...item, qty: 0 };
+        }
+
+        cart[item.id].qty += delta;
+
+        if (cart[item.id].qty <= 0) {
+            delete cart[item.id];
+        }
+
+        document.getElementById(`qty-${item.id}`).textContent =
+            cart[item.id]?.qty || 0;
+
+        updateCartUI();
+    }
+
     async function loadMenu() {
         const res = await fetch('/menu.json');
         const items = await res.json();
 
         const categories = {};
-
         items.forEach(item => {
             if (!categories[item.category]) {
                 categories[item.category] = {
@@ -29,34 +64,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             categories[item.category].items.push(item);
         });
 
-        // Sort categories
-        const sortedCategories = Object.entries(categories)
-            .sort((a, b) => a[1].order - b[1].order);
+        Object.entries(categories)
+            .sort((a, b) => a[1].order - b[1].order)
+            .forEach(([categoryName, data]) => {
 
-        sortedCategories.forEach(([categoryName, categoryData]) => {
-            const section = document.createElement('div');
-            section.className = 'menu-category';
+                const section = document.createElement('div');
+                section.className = 'menu-category';
 
-            const title = document.createElement('h2');
-            title.textContent = categoryName;
-            section.appendChild(title);
+                section.innerHTML = `<h2>${categoryName}</h2>`;
 
-            categoryData.items
-                .sort((a, b) => a.itemOrder - b.itemOrder)
-                .forEach(item => {
-                    const row = document.createElement('div');
-                    row.className = 'menu-item';
+                data.items
+                    .sort((a, b) => a.itemOrder - b.itemOrder)
+                    .forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'menu-item';
 
-                    row.innerHTML = `
-                        <span class="menu-item-name">${item.name}</span>
-                        <span class="menu-item-price">₹${item.price}</span>
-                    `;
+                        row.innerHTML = `
+                            <span class="menu-item-name">${item.name}</span>
+                            <div class="menu-item-controls">
+                                <button class="menu-btn" data-id="${item.id}" data-d="-1">–</button>
+                                <span class="menu-qty" id="qty-${item.id}">0</span>
+                                <button class="menu-btn" data-id="${item.id}" data-d="1">+</button>
+                                <span class="menu-item-price">₹${item.price}</span>
+                            </div>
+                        `;
 
-                    section.appendChild(row);
-                });
+                        row.addEventListener('click', e => {
+                            if (!e.target.dataset.id) return;
+                            changeQty(item, Number(e.target.dataset.d));
+                        });
 
-            menuContainer.appendChild(section);
-        });
+                        section.appendChild(row);
+                    });
+
+                menuContainer.appendChild(section);
+            });
     }
 
     // ---------- QR FLOW ----------
@@ -74,39 +116,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         locationLabel.textContent = 'Select Location';
         locationSelect.classList.remove('hidden');
 
-        try {
-            const res = await fetch('/locations.json');
-            const locations = await res.json();
+        const res = await fetch('/locations.json');
+        const locations = await res.json();
 
-            locations.forEach(loc => {
-                const opt = document.createElement('option');
-                opt.value = loc.id;
-                opt.textContent = loc.name;
-                locationSelect.appendChild(opt);
-            });
+        locations.forEach(loc => {
+            const opt = document.createElement('option');
+            opt.value = loc.id;
+            opt.textContent = loc.name;
+            locationSelect.appendChild(opt);
+        });
 
-            locationSelect.addEventListener('change', async () => {
-                if (!locationSelect.value) return;
+        locationSelect.addEventListener('change', async () => {
+            if (!locationSelect.value) return;
+            resolvedPlaceId = locationSelect.value;
+            debugInfo.textContent = `Flow: Staff | place=${resolvedPlaceId}`;
+            menuContainer.innerHTML = '';
+            Object.keys(cart).forEach(k => delete cart[k]);
+            updateCartUI();
+            await loadMenu();
+        });
 
-                resolvedPlaceId = locationSelect.value;
-                debugInfo.textContent = `Flow: Staff | place=${resolvedPlaceId}`;
-
-                menuContainer.innerHTML = '';
-                await loadMenu();
-            });
-
-            debugInfo.textContent = 'Flow: Staff | waiting for location selection';
-
-        } catch (err) {
-            locationLabel.textContent = 'Failed to load locations';
-            debugInfo.textContent = 'Error loading locations.json';
-            console.error(err);
-        }
-
+        debugInfo.textContent = 'Flow: Staff | waiting for location';
         return;
     }
 
-    // ---------- INVALID ----------
     locationLabel.textContent = 'Invalid order link';
-    debugInfo.textContent = 'No place or staff mode detected';
 });

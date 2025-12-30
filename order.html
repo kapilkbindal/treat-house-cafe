@@ -17,6 +17,7 @@
             max-width: 700px;
             margin: 0 auto;
             padding: 16px;
+            padding-bottom: 80px; /* space for cart bar */
         }
 
         h1 {
@@ -45,8 +46,10 @@
         .debug {
             font-size: 0.85rem;
             color: #666;
-            margin-top: 8px;
+            margin-top: 6px;
         }
+
+        /* MENU */
         .menu-category {
             margin-bottom: 24px;
         }
@@ -61,6 +64,7 @@
         .menu-item {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 10px 8px;
             border-bottom: 1px dashed #ddd;
         }
@@ -73,10 +77,54 @@
             font-weight: 500;
         }
 
+        .menu-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .menu-item-price {
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .menu-btn {
+            border: none;
+            background: #6f4e37;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .menu-qty {
+            min-width: 18px;
+            text-align: center;
             font-weight: 600;
         }
 
+        /* CART BAR */
+        .cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #2c1810;
+            color: white;
+            padding: 12px 16px;
+            z-index: 100;
+        }
+
+        .cart-summary {
+            max-width: 700px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -84,21 +132,28 @@
     <div class="container">
         <h1>Place Your Order</h1>
 
-        <!-- Location Info -->
-        <div class="location-box" id="locationBox">
+        <!-- LOCATION -->
+        <div class="location-box">
             <div id="locationLabel"></div>
-
             <select id="locationSelect" class="hidden">
                 <option value="">Select Location</option>
             </select>
-
             <div class="debug" id="debugInfo"></div>
         </div>
 
-        <!-- Menu will come here later -->
+        <!-- MENU -->
         <div id="menuContainer"></div>
     </div>
 
+    <!-- CART -->
+    <div id="cartBar" class="cart-bar hidden">
+        <div class="cart-summary">
+            <span id="cartCount">0 items</span>
+            <strong id="cartTotal">₹0</strong>
+        </div>
+    </div>
+
+    <!-- SCRIPT -->
     <script src="order.js"></script>
 </body>
 </html>
