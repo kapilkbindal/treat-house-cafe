@@ -1,53 +1,47 @@
 /**
- * Central API configuration & helpers
+ * Central API wrapper
  * Treat House Cafe
  */
 
-const BASE_URL =
-  'https://script.google.com/macros/s/AKfycbyfnzEZUouEi1jJ99RovxedzMwBKOX_dEScMCTAETW1vPn89_gRxk2TrIDjt0cmUshicA/exec'; // your real URL
-
-async function apiFetch(url, options = {}) {
-  const res = await fetch(url, options);
-  const data = await res.json();
-
-  if (!data.success) {
-    throw new Error(data.message || 'API error');
-  }
-
-  return data.data;
-}
+const BASE_URL = 'https://script.google.com/macros/s/AKfycbyfnzEZUouEi1jJ99RovxedzMwBKOX_dEScMCTAETW1vPn89_gRxk2TrIDjt0cmUshicA/exec';
 
 const API = {
   /* -------------------------
      GET MENU
      ------------------------- */
   async getMenu() {
-    return await apiFetch(`${BASE_URL}?action=getMenu`);
+    const res = await fetch(`${BASE_URL}?action=menu`);
+    const data = await res.json();
+
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid menu response');
+    }
+    return data;
   },
 
   /* -------------------------
      GET LOCATIONS
      ------------------------- */
   async getLocations() {
-    return await apiFetch(`${BASE_URL}?action=getLocations`);
+    const res = await fetch(`${BASE_URL}?action=locations`);
+    const data = await res.json();
+
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid locations response');
+    }
+    return data;
   },
 
   /* -------------------------
-     PLACE ORDER
+     CREATE ORDER
      ------------------------- */
-  async placeOrder(payload) {
-    const res = await fetch(`${BASE_URL}?action=placeOrder`, {
+  async createOrder(payload) {
+    const res = await fetch(BASE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
-
-    if (!data.success) {
-      throw new Error(data.message || 'Order failed');
-    }
-
-    return data;
+    return await res.json();
   }
 };

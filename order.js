@@ -77,10 +77,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadMenu() {
     menuContainer.innerHTML = '';
 
-    const items = await API.getMenu(); // MUST return array
+    const items = await API.getMenu(); // must return array
 
     const categories = {};
-
     items.forEach(item => {
       if (!categories[item.category]) {
         categories[item.category] = {
@@ -148,6 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const total = items.reduce((s, i) => s + i.qty * i.price, 0);
 
     const payload = {
+      action: 'createOrder',
       locationId: resolvedPlaceId,
       mode: placeFromQR ? 'QR' : 'STAFF',
       customerName: customerNameInput.value || '',
@@ -159,7 +159,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     placeOrderBtn.disabled = true;
 
     try {
-      const result = await API.placeOrder(payload);
+      // ✅ FIX: use createOrder (not placeOrder)
+      const result = await API.createOrder(payload);
       alert(`Order placed! Order ID: ${result.orderId}`);
       location.reload();
     } catch (err) {
