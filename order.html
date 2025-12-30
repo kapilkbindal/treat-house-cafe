@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Place Order | Treat House Cafe</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, sans-serif;
+            background: #f8f4e9;
+            color: #2c1810;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .location-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .debug {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Place Your Order</h1>
+
+        <!-- Location Info -->
+        <div class="location-box" id="locationBox">
+            <div id="locationLabel"></div>
+
+            <select id="locationSelect" class="hidden">
+                <option value="">Select Location</option>
+            </select>
+
+            <div class="debug" id="debugInfo"></div>
+        </div>
+
+        <!-- Menu will come here later -->
+        <div id="menuContainer"></div>
+    </div>
+
+    <script src="order.js"></script>
+</body>
+</html>
