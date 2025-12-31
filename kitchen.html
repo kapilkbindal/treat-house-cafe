@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kitchen Orders | Treat House Cafe</title>
+
+  <style>
+    :root {
+      --bg: #f8f4e9;
+      --card: #0f172a;
+      --text: #ffffff;
+
+      --open: #3b82f6;
+      --preparing: #f59e0b;
+      --ready: #22c55e;
+      --served: #8b5cf6;
+      --closed: #9ca3af;
+      --cancelled: #ef4444;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: #111;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      font-size: 28px;
+      font-weight: 800;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    header span {
+      font-size: 30px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .order-card {
+      background: var(--card);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .order-id {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .location {
+      font-size: 16px;
+      margin-bottom: 10px;
+      opacity: 0.9;
+    }
+
+    .items {
+      padding-left: 20px;
+      margin: 12px 0;
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .items li {
+      list-style: disc;
+    }
+
+    .actions {
+      margin-top: 14px;
+      text-align: right;
+    }
+
+    .action-btn {
+      font-size: 16px;
+      font-weight: 800;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* STATUS COLORS */
+    .status-OPEN { border-left: 8px solid var(--open); }
+    .status-PREPARING { border-left: 8px solid var(--preparing); }
+    .status-READY { border-left: 8px solid var(--ready); }
+
+    .status-OPEN .status-badge { background: var(--open); }
+    .status-PREPARING .status-badge { background: var(--preparing); color: #000; }
+    .status-READY .status-badge { background: var(--ready); }
+
+    .status-OPEN .action-btn {
+      background: var(--open);
+      color: #fff;
+    }
+
+    .status-PREPARING .action-btn {
+      background: var(--preparing);
+      color: #000;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      font-size: 20px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <span>🍳</span>
+  Kitchen Orders
+</header>
+
+<div class="container" id="orders">
+  <div class="empty">Loading orders…</div>
+</div>
+
+<!-- API -->
+<script src="api.js"></script>
+
+<script>
+  const container = document.getElementById('orders');
+
+  const STATUS_FLOW = {
+    OPEN: 'PREPARING',
+    PREPARING: 'READY'
+  };
+
+  function renderOrder(order) {
+    const nextStatus = STATUS_FLOW[order.orderStatus];
+
+    const itemsHtml = order.items.length
+      ? order.items.map(i => `<li>${i.qty} × ${i.name}</li>`).join('')
+      : `<li style="opacity:.6">No items</li>`;
+
+    return `
+      <div class="order-card status-${order.orderStatus}">
+        <div class="order-header">
+          <div class="order-id">${order.orderId}</div>
+          <div class="status-badge">${order.orderStatus}</div>
+        </div>
+
+        <div class="location">📍 ${order.locationId}</div>
+
+        <ul class="items">${itemsHtml}</ul>
+
+        ${nextStatus ? `
+          <div class="actions">
+            <button class="action-btn"
+              onclick="updateStatus('${order.orderId}', '${nextStatus}')">
+              Mark ${nextStatus}
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  async function loadOrders() {
+    try {
+      const orders = await API.getKitchenOrders();
+
+      if (!orders.length) {
+        container.innerHTML = `<div class="empty">No active orders 🍽️</div>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(renderOrder).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="empty">Failed to load orders</div>`;
+    }
+  }
+
+  async function updateStatus(orderId, nextStatus) {
+    await API.updateKitchenStatus(orderId, nextStatus);
+    loadOrders();
+  }
+
+  loadOrders();
+  setInterval(loadOrders, 10000); // auto-refresh every 10s
+</script>
+
+</body>
+</html>

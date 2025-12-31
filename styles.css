@@ -1217,3 +1217,25 @@ ul {
         width: 100%;
     }
 }
+
+.order-card {
+  background: #222;
+  color: #fff;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.order-card.OPEN { border-left: 6px solid #3498db; }
+.order-card.PREPARING { border-left: 6px solid #f39c12; }
+.order-card.READY { border-left: 6px solid #2ecc71; }
+
+button {
+  margin-top: 12px;
+  padding: 10px;
+  background: #f39c12;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+

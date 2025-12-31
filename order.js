@@ -1,15 +1,11 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
-  /* -----------------------------
-     URL PARAMS
-  ----------------------------- */
+  /* URL PARAMS */
   const params = new URLSearchParams(window.location.search);
   const placeFromQR = params.get('place');
   const mode = params.get('mode');
 
-  /* -----------------------------
-     DOM ELEMENTS
-  ----------------------------- */
+  /* DOM */
   const locationLabel = document.getElementById('locationLabel');
   const locationSelect = document.getElementById('locationSelect');
   const debugInfo = document.getElementById('debugInfo');
@@ -24,19 +20,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const customerNameInput = document.getElementById('customerName');
   const customerMobileInput = document.getElementById('customerMobile');
 
-  /* -----------------------------
-     STATE
-  ----------------------------- */
+  /* STATE */
   let resolvedPlaceId = null;
   const cart = {}; // { itemId: { itemId, name, price, qty } }
 
-  /* -----------------------------
-     CART UI
-  ----------------------------- */
+  /* CART UI */
   function updateCartUI() {
     const items = Object.values(cart);
     const count = items.reduce((s, i) => s + i.qty, 0);
-    const total = items.reduce((s, i) => s + i.qty * i.price, 0);
+    const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
 
     if (count === 0) {
       cartBar.classList.add('hidden');
@@ -48,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     cartBar.classList.remove('hidden');
     cartCountEl.textContent = `${count} item${count > 1 ? 's' : ''}`;
-    cartTotalEl.textContent = `₹${total}`;
+    cartTotalEl.textContent = `₹${subtotal}`;
     placeOrderBtn.disabled = false;
   }
 
@@ -71,13 +63,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateCartUI();
   }
 
-  /* -----------------------------
-     LOAD MENU
-  ----------------------------- */
+  /* LOAD MENU */
   async function loadMenu() {
     menuContainer.innerHTML = '';
-
-    const items = await API.getMenu(); // must return array
+    const items = await API.getMenu();
 
     const categories = {};
     items.forEach(item => {
@@ -128,9 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
   }
 
-  /* -----------------------------
-     SUBMIT ORDER
-  ----------------------------- */
+  /* SUBMIT ORDER */
   async function submitOrder() {
     if (!resolvedPlaceId || Object.keys(cart).length === 0) {
       alert('Please add items to cart');
@@ -144,7 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       price: i.price
     }));
 
-    const total = items.reduce((s, i) => s + i.qty * i.price, 0);
+    const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
 
     const payload = {
       action: 'createOrder',
@@ -153,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       customerName: customerNameInput.value || '',
       mobile: customerMobileInput.value || '',
       items,
-      total
+      total: subtotal
     };
 
     placeOrderBtn.disabled = true;
@@ -171,29 +158,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   placeOrderBtn.addEventListener('click', submitOrder);
 
-  /* -----------------------------
-     QR FLOW
-  ----------------------------- */
+  /* QR FLOW */
   if (placeFromQR) {
     resolvedPlaceId = placeFromQR;
     locationLabel.textContent = `Ordering for: ${placeFromQR}`;
     locationSelect.classList.add('hidden');
     customerBox.classList.remove('hidden');
-    debugInfo.textContent = `Flow: QR | place=${placeFromQR}`;
+    debugInfo.textContent = `Flow: QR`;
     await loadMenu();
     return;
   }
 
-  /* -----------------------------
-     STAFF FLOW
-  ----------------------------- */
+  /* STAFF FLOW */
   if (mode === 'staff') {
     locationLabel.textContent = 'Select Location';
     locationSelect.classList.remove('hidden');
     customerBox.classList.remove('hidden');
 
     const locations = await API.getLocations();
-
     locations.forEach(loc => {
       const opt = document.createElement('option');
       opt.value = loc.locationId;
@@ -203,23 +185,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     locationSelect.addEventListener('change', async () => {
       if (!locationSelect.value) return;
-
       resolvedPlaceId = locationSelect.value;
-      debugInfo.textContent = `Flow: Staff | place=${resolvedPlaceId}`;
-
-      menuContainer.innerHTML = '';
       Object.keys(cart).forEach(k => delete cart[k]);
       updateCartUI();
-
       await loadMenu();
     });
 
-    debugInfo.textContent = 'Flow: Staff | waiting for location';
     return;
   }
 
-  /* -----------------------------
-     INVALID LINK
-  ----------------------------- */
   locationLabel.textContent = 'Invalid order link';
 });
