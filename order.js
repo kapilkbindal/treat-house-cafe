@@ -159,8 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     placeOrderBtn.disabled = true;
 
     try {
-      // ✅ FIX: use createOrder (not placeOrder)
-      const result = await API.createOrder(payload);
+      const result = await API.placeOrder(payload);
       alert(`Order placed! Order ID: ${result.orderId}`);
       location.reload();
     } catch (err) {
