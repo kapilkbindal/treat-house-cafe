@@ -339,5 +339,17 @@
     <script src="script.js"></script>
     <script src="newsletter.js"></script>
 
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          reg.update();
+        });
+
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('🔄 New version found. Reloading...');
+          window.location.reload();
+        });
+      }
+    </script>
 </body>
 </html>
