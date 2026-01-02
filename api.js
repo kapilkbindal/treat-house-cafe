@@ -5,6 +5,13 @@
 const BASE_URL =
   'https://script.google.com/macros/s/AKfycbyfnzEZUouEi1jJ99RovxedzMwBKOX_dEScMCTAETW1vPn89_gRxk2TrIDjt0cmUshicA/exec';
 
+function getAuthToken() {
+  try {
+    const user = JSON.parse(sessionStorage.getItem('thc_user'));
+    return user ? user.token : null;
+  } catch (e) { return null; }
+}
+
 /* ---------------------------------------------------
    SAFE FETCH WRAPPER
 --------------------------------------------------- */
@@ -26,7 +33,7 @@ async function safeFetch(url, options = {}) {
 }
 
 /* ---------------------------------------------------
-   API OBJECT
+   API OBJECT (SINGLE SOURCE OF TRUTH)
 --------------------------------------------------- */
 const API = {
   /* -----------------------------
@@ -41,10 +48,18 @@ const API = {
   },
 
   /* -----------------------------
+     ORDERS (UNIFIED – REQUIRED)
+  ----------------------------- */
+  async getOrders() {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=orders&_t=${Date.now()}&token=${encodeURIComponent(token)}`);
+  },
+
+  /* -----------------------------
      ORDER CREATION
   ----------------------------- */
   async placeOrder(payload) {
-    return safeFetch(BASE_URL, {
+    return safeFetch(`${BASE_URL}?action=createOrder`, {
       method: 'POST',
       body: JSON.stringify({
         action: 'createOrder',
@@ -54,10 +69,54 @@ const API = {
   },
 
   /* -----------------------------
+     ORDER STATUS UPDATE (GENERIC)
+  ----------------------------- */
+  async updateOrderStatus(orderId, nextStatus) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=updateOrderStatus&orderId=${encodeURIComponent(orderId)}&nextStatus=${encodeURIComponent(nextStatus)}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'updateOrderStatus',
+        orderId,
+        nextStatus,
+        token
+      })
+    });
+  },
+
+  /* -----------------------------
+     MANAGER ACTIONS
+  ----------------------------- */
+  async closeOrder(payload) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=closeOrder`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'closeOrder',
+        ...payload,
+        token
+      })
+    });
+  },
+
+  async cancelOrder(orderId, reason = '') {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=cancelOrder&orderId=${encodeURIComponent(orderId)}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'cancelOrder',
+        orderId,
+        reason,
+        token
+      })
+    });
+  },
+
+  /* -----------------------------
      NEWSLETTER
   ----------------------------- */
   async subscribeNewsletter(email) {
-    return safeFetch(BASE_URL, {
+    return safeFetch(`${BASE_URL}?action=newsletter`, {
       method: 'POST',
       body: JSON.stringify({
         action: 'newsletter',
@@ -67,38 +126,94 @@ const API = {
   },
 
   /* -----------------------------
-     KITCHEN VIEW
+     AUTH
   ----------------------------- */
-  async getKitchenOrders() {
-    return safeFetch(`${BASE_URL}?action=kitchenOrders`);
-  },
-
-  async updateKitchenStatus(orderId, nextStatus) {
-    return safeFetch(BASE_URL, {
+  async login(username, password) {
+    return safeFetch(`${BASE_URL}?action=login`, {
       method: 'POST',
       body: JSON.stringify({
-        action: 'updateKitchenStatus',
-        orderId,
-        nextStatus
+        action: 'login',
+        username,
+        password
       })
     });
   },
 
-  /* -----------------------------
-     MANAGER VIEW
-  ----------------------------- */
-  async getManagerOrders() {
-    return safeFetch(`${BASE_URL}?action=managerOrders`);
-  },
-
-  async closeOrder({ orderId, paymentMode, notes }) {
-    return safeFetch(BASE_URL, {
+  async logout() {
+    const token = getAuthToken();
+    if (!token) return;
+    return safeFetch(`${BASE_URL}?action=logout`, {
       method: 'POST',
       body: JSON.stringify({
-        action: 'closeOrder',
-        orderId,
-        paymentMode,
-        notes
+        action: 'logout',
+        token
+      })
+    });
+  },
+
+  async changePassword(oldPassword, newPassword) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=changePassword`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'changePassword',
+        token,
+        oldPassword,
+        newPassword
+      })
+    });
+  },
+
+  async adminResetPassword(targetUsername, newPassword) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=adminResetPassword`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'adminResetPassword',
+        token,
+        targetUsername,
+        newPassword
+      })
+    });
+  },
+
+  async getUsers() {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=getUsers&token=${encodeURIComponent(token)}`);
+  },
+
+  async createUser(user) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=createUser`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'createUser',
+        token,
+        ...user
+      })
+    });
+  },
+
+  async deleteUser(targetUsername) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=deleteUser`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'deleteUser',
+        token,
+        targetUsername
+      })
+    });
+  },
+
+  async updateUser(user) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=updateUser`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'updateUser',
+        token,
+        ...user
       })
     });
   }

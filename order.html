@@ -161,6 +161,12 @@
     <div class="location-box">
       <div id="locationLabel">Loading order…</div>
 
+      <select id="modeSelect" class="hidden">
+        <option value="Dine-in">Dine-in</option>
+        <option value="Takeaway">Takeaway</option>
+        <option value="Delivery">Delivery</option>
+      </select>
+
       <select id="locationSelect" class="hidden">
         <option value="">Select Location</option>
       </select>
@@ -172,6 +178,7 @@
     <div class="location-box hidden" id="customerBox">
       <input type="text" id="customerName" placeholder="Your Name (optional)" />
       <input type="tel" id="customerMobile" placeholder="Mobile Number (optional)" />
+      <textarea id="customerAddress" class="hidden" placeholder="Delivery Address" style="width: 100%; margin-top: 8px; padding: 10px; font-family: inherit; border: 1px solid #ccc; border-radius: 4px;"></textarea>
     </div>
 
     <!-- MENU -->

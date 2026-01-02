@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Orders Dashboard | Treat House Cafe</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    :root {
+      --bg: #f8f4e9;
+      --card: #0f172a;
+      --text: #ffffff;
+      --muted: #94a3b8;
+
+      --OPEN: #64748b;
+      --PREPARING: #f59e0b;
+      --READY: #3b82f6;
+      --SERVED: #8b5cf6;
+      --HANDED_OVER: #6366f1;
+      --OUT_FOR_DELIVERY: #06b6d4;
+      --DELIVERED: #22c55e;
+      --CLOSED: #16a34a;
+      --CANCELLED: #ef4444;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+    }
+
+    header {
+      padding: 16px 20px;
+      font-size: 22px;
+      font-weight: 800;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .role {
+      font-size: 14px;
+      color: #555;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #e5e7eb;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      background: #111827;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 16px;
+    }
+
+    .order {
+      background: var(--card);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border-left: 8px solid;
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .order-id {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .badge {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 12px;
+      color: #000;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 6px;
+      font-size: 13px;
+      border-bottom: 1px solid #334155;
+      text-align: left;
+    }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .empty {
+      text-align: center;
+      opacity: 0.6;
+      padding: 40px;
+      font-size: 18px;
+    }
+
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal.hidden { display: none; }
+    .modal-content {
+      background: #fff;
+      padding: 24px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+      color: #000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-content h3 { margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .modal-content label { display: block; margin-top: 12px; font-weight: 600; font-size: 0.9rem; color: #333; }
+    .modal-content input, .modal-content select {
+      width: 100%; padding: 10px; margin-top: 4px;
+      border: 1px solid #ccc; border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    .summary { background: #f3f4f6; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+    .summary div { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  </style>
+  <style>
+    /* Login Overlay */
+    #loginOverlay {
+      background: #0f172a;
+      color: white;
+    }
+    #loginOverlay input {
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div>📊 Orders Dashboard</div>
+  <div class="role" id="roleInfo"></div>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="container" id="orders">
+  <div class="empty">Loading orders…</div>
+</div>
+
+<!-- CLOSE ORDER MODAL -->
+<div id="closeModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Close Order <span id="modalOrderId" style="font-weight:400; color:#666; font-size:0.8em"></span></h3>
+    
+    <div class="summary">
+      <div><span>Subtotal:</span> <strong id="modalSubtotal"></strong></div>
+      <div style="font-size:1.2em; margin-top:8px; border-top:1px dashed #ccc; padding-top:8px"><span>Final Total:</span> <strong id="modalFinal" style="color:#22c55e"></strong></div>
+    </div>
+
+    <label>Discount %</label>
+    <input type="number" id="discPercent" placeholder="0" oninput="onPercentChange()">
+
+    <label>Discount Amount (₹)</label>
+    <input type="number" id="discAmount" placeholder="0" oninput="onAmountChange()">
+
+    <label>Payment Mode</label>
+    <select id="payMode">
+      <option value="Cash">Cash</option>
+      <option value="UPI">UPI</option>
+      <option value="Card">Card</option>
+    </select>
+
+    <div class="actions" style="justify-content: flex-end; margin-top:24px">
+      <button onclick="hideCloseModal()" style="background:#94a3b8; color:white">Cancel</button>
+      <button onclick="submitCloseOrder()" style="background:#22c55e; color:white">Confirm & Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div id="passwordModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Change Password</h3>
+    <label>Current Password</label>
+    <input type="password" id="oldPass">
+    <label>New Password</label>
+    <input type="password" id="newPass">
+    <div class="actions" style="justify-content: flex-end; margin-top:24px">
+      <button onclick="document.getElementById('passwordModal').classList.add('hidden')" style="background:#94a3b8; color:white">Cancel</button>
+      <button onclick="submitChangePassword()" style="background:#22c55e; color:white">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" class="modal hidden">
+  <div class="modal-content" style="text-align:center">
+    <h3>Treat House Cafe Login</h3>
+    <input type="text" id="loginUser" placeholder="Username">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="handleLogin()" style="width:100%; background:var(--color-primary, #6F4E37); color:white; margin-top:10px">Login</button>
+    <p id="loginError" style="color:red; margin-top:10px; font-size:0.9em"></p>
+    <p style="margin-top:15px; font-size:0.8em; color:#666">Forgot password? Contact Manager.</p>
+  </div>
+  <button id="installBtn" style="display:none; position:absolute; bottom:40px; width:90%; max-width:400px; background:#3b82f6; color:white; border:none; padding:16px; border-radius:12px; font-size:1.1rem; font-weight:bold; cursor:pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.3);">📲 Install App</button>
+</div>
+
+<script src="api.js"></script>
+<script src="dashboard.js"></script>
+<script>
+  // PWA Install Logic
+  let deferredPrompt;
+  const installBtn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    console.log('👍 PWA Install event fired!');
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredPrompt = e;
+    // Update UI to notify the user they can add to home screen
+    installBtn.style.display = 'block';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.style.display = 'none';
+      }
+      deferredPrompt = null;
+    }
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+</body>
+</html>

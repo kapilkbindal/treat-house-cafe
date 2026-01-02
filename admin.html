@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard | Treat House Cafe</title>
+  <style>
+    :root {
+      --primary: #6F4E37;
+      --primary-dark: #5a3e2b;
+      --bg: #f8f4e9;
+      --card: #ffffff;
+      --text: #2c1810;
+      --border: #e5e7eb;
+      --danger: #ef4444;
+    }
+    body { 
+      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+      background: var(--bg); 
+      color: var(--text); 
+      margin: 0; 
+      padding: 20px; 
+      min-height: 100vh;
+    }
+    .container { 
+      max-width: 1000px; 
+      margin: 40px auto; 
+      background: var(--card); 
+      padding: 40px; 
+      border-radius: 16px; 
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); 
+    }
+    
+    /* Login Specific */
+    #loginSection {
+      max-width: 400px;
+      margin-top: 10vh;
+      text-align: center;
+    }
+    
+    h1, h2, h3 { margin-top: 0; color: var(--primary); }
+    h1 { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+
+    /* Forms */
+    input, select { 
+      width: 100%; 
+      padding: 12px; 
+      margin: 8px 0 20px; 
+      box-sizing: border-box; 
+      border: 1px solid #ccc; 
+      border-radius: 8px; 
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    label { 
+      font-weight: 600; 
+      font-size: 0.9em; 
+      display: block; 
+      margin-top: 10px;
+      color: #555;
+    }
+
+    /* Buttons */
+    button { 
+      cursor: pointer; 
+      padding: 10px 20px; 
+      border-radius: 8px; 
+      border: none; 
+      font-weight: 600; 
+      font-size: 0.95rem;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-secondary { background: #94a3b8; color: white; }
+    
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 0; }
+    th { 
+      text-align: left; 
+      padding: 16px; 
+      background: #f9fafb; 
+      color: #666; 
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+    td { 
+      padding: 16px; 
+      border-bottom: 1px solid var(--border); 
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    
+    /* Modal */
+    .modal { 
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.5); 
+      display: none; 
+      justify-content: center; 
+      align-items: center; 
+      backdrop-filter: blur(2px);
+    }
+    .modal.active { display: flex; }
+    .modal-content { 
+      background: white; 
+      padding: 30px; 
+      border-radius: 16px; 
+      width: 100%;
+      max-width: 450px; 
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .modal-actions {
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      
+      .container {
+        padding: 20px;
+        margin: 20px auto;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      h1 div {
+        width: 100%;
+        display: flex;
+        gap: 10px;
+      }
+
+      h1 button { flex: 1; }
+
+      /* Card View for Table on Mobile */
+      table, thead, tbody, th, td, tr { display: block; }
+      thead tr { position: absolute; top: -9999px; left: -9999px; }
+      
+      tr { 
+        border: 1px solid var(--border); 
+        margin-bottom: 15px; 
+        border-radius: 12px; 
+        background: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      
+      td { 
+        border: none;
+        border-bottom: 1px solid #eee; 
+        position: relative;
+        padding: 12px 12px 12px 40%; 
+        text-align: right;
+      }
+      
+      td:before { 
+        position: absolute;
+        top: 12px; left: 12px;
+        width: 35%; 
+        white-space: nowrap;
+        text-align: left;
+        font-weight: 600;
+        color: var(--primary);
+      }
+      
+      td:nth-of-type(1):before { content: "Username"; }
+      td:nth-of-type(2):before { content: "Name"; }
+      td:nth-of-type(3):before { content: "Role"; }
+      td:nth-of-type(4):before { content: "Actions"; }
+
+      td:nth-of-type(4) {
+        padding-left: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        background: #f9fafb;
+        border-radius: 0 0 12px 12px;
+      }
+      td:nth-of-type(4):before { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loginSection" class="container">
+  <h2 style="text-align:center">Admin Login</h2>
+  <input type="text" id="adminUser" placeholder="Username">
+  <input type="password" id="adminPass" placeholder="Password">
+  <button class="btn-primary" style="width:100%" onclick="adminLogin()">Login</button>
+  <p id="loginError" style="color:red; text-align:center"></p>
+</div>
+
+<div id="dashboardSection" class="container" style="display:none">
+  <h1>
+    User Management
+    <div>
+      <button class="btn-primary" onclick="showCreateModal()">+ Add User</button>
+      <button class="btn-secondary" onclick="adminLogout()">Logout</button>
+    </div>
+  </h1>
+  
+  <table id="userTable">
+    <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- CREATE USER MODAL -->
+<div id="createModal" class="modal">
+  <div class="modal-content">
+    <h3>Create User</h3>
+    <label>Username</label><input type="text" id="newUsername">
+    <label>Password</label><input type="text" id="newPassword">
+    <label>Name</label><input type="text" id="newName">
+    <label>Role</label>
+    <select id="newRole">
+      <option value="kitchen">Kitchen</option>
+      <option value="waiter">Waiter</option>
+      <option value="delivery">Delivery</option>
+      <option value="manager">Manager</option>
+      <option value="admin">Admin</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+      <button class="btn-primary" onclick="submitCreateUser()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit User</h3>
+    <p>Editing: <strong id="editTargetDisplay"></strong></p>
+    <input type="hidden" id="editTargetUsername">
+    <label>Name</label><input type="text" id="editName">
+    <label>Role</label>
+    <select id="editRole">
+      <option value="kitchen">Kitchen</option>
+      <option value="waiter">Waiter</option>
+      <option value="delivery">Delivery</option>
+      <option value="manager">Manager</option>
+      <option value="admin">Admin</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+      <button class="btn-primary" onclick="submitEditUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div id="resetModal" class="modal">
+  <div class="modal-content">
+    <h3>Reset Password</h3>
+    <p>User: <strong id="resetTarget"></strong></p>
+    <label>New Password</label><input type="text" id="resetPassword">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+      <button class="btn-danger" onclick="submitResetPassword()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

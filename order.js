@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* DOM */
   const locationLabel = document.getElementById('locationLabel');
   const locationSelect = document.getElementById('locationSelect');
+  const modeSelect = document.getElementById('modeSelect');
   const debugInfo = document.getElementById('debugInfo');
   const menuContainer = document.getElementById('menuContainer');
 
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const customerBox = document.getElementById('customerBox');
   const customerNameInput = document.getElementById('customerName');
   const customerMobileInput = document.getElementById('customerMobile');
+  const customerAddressInput = document.getElementById('customerAddress');
 
   /* STATE */
   let resolvedPlaceId = null;
@@ -30,6 +32,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const count = items.reduce((s, i) => s + i.qty, 0);
     const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
 
+    let total = subtotal;
+    let feeText = '';
+
+    // Check if delivery mode is active (Online or Staff selected Delivery)
+    let isDelivery = (mode === 'online');
+    if (mode === 'staff' && modeSelect && modeSelect.value === 'Delivery') {
+      isDelivery = true;
+    }
+
+    // Delivery Fee Logic
+    if (isDelivery && subtotal < 500 && subtotal > 0) {
+      total += 50;
+      feeText = ' (+₹50 Delivery)';
+    }
+
     if (count === 0) {
       cartBar.classList.add('hidden');
       cartCountEl.textContent = '0 items';
@@ -40,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     cartBar.classList.remove('hidden');
     cartCountEl.textContent = `${count} item${count > 1 ? 's' : ''}`;
-    cartTotalEl.textContent = `₹${subtotal}`;
+    cartTotalEl.textContent = `₹${total}${feeText}`;
     placeOrderBtn.disabled = false;
   }
 
@@ -124,6 +141,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Determine mode early for validation
+    let selectedMode = 'Dine-in';
+    if (placeFromQR) {
+      selectedMode = 'Dine-in';
+    } else if ((mode === 'staff' || mode === 'online') && modeSelect) {
+      selectedMode = modeSelect.value;
+    }
+
+    // Validation for Delivery Orders (Online or Staff-Delivery)
+    if (selectedMode === 'Delivery') {
+      if (!customerNameInput.value.trim()) { alert('Name is required for delivery orders'); return; }
+      if (!customerMobileInput.value.trim()) { alert('Mobile is required for delivery orders'); return; }
+      if (!customerAddressInput.value.trim()) { alert('Address is required for delivery'); return; }
+    }
+
     const items = Object.values(cart).map(i => ({
       itemId: i.itemId,
       name: i.name,
@@ -132,15 +164,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
 
     const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
+    let total = subtotal;
+
+    // Apply Delivery Fee to Payload
+    if (selectedMode === 'Delivery' && subtotal < 500) {
+      total += 50;
+      // Add fee as a line item so it appears on the receipt/dashboard
+      items.push({
+        itemId: 'DELIVERY_FEE', name: 'Delivery Fee', qty: 1, price: 50
+      });
+    }
 
     const payload = {
       action: 'createOrder',
       locationId: resolvedPlaceId,
-      mode: placeFromQR ? 'QR' : 'STAFF',
+      mode: selectedMode,
       customerName: customerNameInput.value || '',
       mobile: customerMobileInput.value || '',
+      address: customerAddressInput.value || '',
       items,
-      total: subtotal
+      total: total
     };
 
     placeOrderBtn.disabled = true;
@@ -171,8 +214,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* STAFF FLOW */
   if (mode === 'staff') {
-    locationLabel.textContent = 'Select Location';
-    locationSelect.classList.remove('hidden');
+    locationLabel.textContent = 'Order Details';
+    modeSelect.classList.remove('hidden');
     customerBox.classList.remove('hidden');
 
     const locations = await API.getLocations();
@@ -183,6 +226,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       locationSelect.appendChild(opt);
     });
 
+    const handleModeChange = async () => {
+      // Toggle Address Input for Delivery
+      if (modeSelect.value === 'Delivery') {
+        customerAddressInput.classList.remove('hidden');
+      } else {
+        customerAddressInput.classList.add('hidden');
+      }
+      
+      updateCartUI(); // Recalculate totals (delivery fee might apply)
+
+      if (modeSelect.value === 'Dine-in') {
+        locationSelect.classList.remove('hidden');
+        resolvedPlaceId = locationSelect.value || null;
+        if (resolvedPlaceId) {
+          await loadMenu();
+        } else {
+          menuContainer.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">Please select a table to view menu</div>';
+        }
+      } else {
+        locationSelect.classList.add('hidden');
+        resolvedPlaceId = 'COUNTER';
+        await loadMenu();
+      }
+    };
+
+    modeSelect.addEventListener('change', handleModeChange);
+    await handleModeChange();
+
     locationSelect.addEventListener('change', async () => {
       if (!locationSelect.value) return;
       resolvedPlaceId = locationSelect.value;
@@ -191,6 +262,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadMenu();
     });
 
+    return;
+  }
+
+  /* ONLINE FLOW */
+  if (mode === 'online') {
+    resolvedPlaceId = 'WEBSITE';
+    locationLabel.textContent = 'Web Order';
+    locationSelect.classList.add('hidden');
+    modeSelect.classList.add('hidden'); // Hide mode dropdown for online users
+    customerBox.classList.remove('hidden');
+    customerAddressInput.classList.remove('hidden');
+
+    // Make fields look mandatory
+    customerNameInput.placeholder = "Your Name (Required)";
+    customerMobileInput.placeholder = "Mobile Number (Required)";
+
+    // Force Delivery mode
+    if (modeSelect.value === 'Dine-in') modeSelect.value = 'Delivery';
+
+    await loadMenu();
     return;
   }
 
