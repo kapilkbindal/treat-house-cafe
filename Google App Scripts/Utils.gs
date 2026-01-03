@@ -314,19 +314,20 @@ function setupSheet() {
     'Timestamp',      // B (Date)
     'Location ID',    // C
     'Mode',           // D
-    'Customer Name',  // E
-    'Mobile',         // F
-    'Address',        // G
-    'Items JSON',     // H
-    'Total',          // I
-    'Order Status',   // J
-    'Payment Status', // K
-    'Discount %',     // L
-    'Discount Amount',// M
-    'Final Amount',   // N
-    'Payment Mode',   // O
-    'Closed At',      // P
-    'Notes'           // Q
+    'Staff Member',   // E
+    'Customer Name',  // F
+    'Mobile',         // G
+    'Address',        // H
+    'Items JSON',     // I
+    'Total',          // J
+    'Order Status',   // K
+    'Payment Status', // L
+    'Discount %',     // M
+    'Discount Amount',// N
+    'Final Amount',   // O
+    'Payment Mode',   // P
+    'Closed At',      // Q
+    'Notes'           // R
   ];
   
   const s = SpreadsheetApp.getActive().getSheetByName('Orders');

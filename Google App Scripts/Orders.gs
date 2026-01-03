@@ -14,6 +14,7 @@ function handleCreateOrder(payload) {
     const {
       locationId,
       mode,
+      staffMember = '',
       customerName = '',
       mobile = '',
       address = '',
@@ -38,13 +39,14 @@ function handleCreateOrder(payload) {
       now,                   // B
       locationId,            // C
       mode,                  // D
-      customerName,          // E
-      mobile,                // F
-      address,               // G (New Address Column)
-      JSON.stringify(items), // H
-      total,                 // I
-      'OPEN',                // J
-      '', '', '', '', '', '', '' // J-P (Payment Status, Discount %, Discount Amt, Final Amt, Pay Mode, Closed At, Notes)
+      staffMember,           // E
+      customerName,          // F
+      mobile,                // G
+      address,               // H
+      JSON.stringify(items), // I
+      total,                 // J
+      'OPEN',                // K
+      '', '', '', '', '', '', '' // L-R (Payment Status, Discount %, Discount Amt, Final Amt, Pay Mode, Closed At, Notes)
     ]);
 
     return jsonResponse({ success: true, orderId });

@@ -175,10 +175,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
+    let staffMember = '';
+    if (mode === 'staff') {
+      try {
+        const u = JSON.parse(sessionStorage.getItem('thc_user'));
+        if (u) staffMember = u.username;
+      } catch (e) {}
+    }
+
     const payload = {
       action: 'createOrder',
       locationId: resolvedPlaceId,
       mode: selectedMode,
+      staffMember,
       customerName: customerNameInput.value || '',
       mobile: customerMobileInput.value || '',
       address: customerAddressInput.value || '',
@@ -214,6 +223,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* STAFF FLOW */
   if (mode === 'staff') {
+    // Security: Restrict staff mode to dashboard-order.html
+    if (!window.location.pathname.includes('dashboard-order.html')) {
+      window.location.href = 'index.html';
+      return;
+    }
+
     // Add Back Button
     const container = document.querySelector('.container');
     const backBtn = document.createElement('button');
