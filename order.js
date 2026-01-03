@@ -214,6 +214,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* STAFF FLOW */
   if (mode === 'staff') {
+    // Add Back Button
+    const container = document.querySelector('.container');
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← Dashboard';
+    backBtn.onclick = () => window.location.href = 'dashboard.html';
+    backBtn.style.cssText = 'margin-bottom:15px; padding:8px 12px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; display:block';
+    container.insertBefore(backBtn, container.firstChild);
+
     locationLabel.textContent = 'Order Details';
     modeSelect.classList.remove('hidden');
     customerBox.classList.remove('hidden');
