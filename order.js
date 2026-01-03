@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const backBtn = document.createElement('button');
     backBtn.textContent = '← Dashboard';
     backBtn.onclick = () => window.location.href = 'dashboard.html';
-    backBtn.style.cssText = 'margin-bottom:15px; padding:8px 12px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; display:block';
+    backBtn.style.cssText = 'margin-bottom:15px; padding:10px 16px; background:#6F4E37; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; display:block; font-family:inherit;';
     container.insertBefore(backBtn, container.firstChild);
 
     locationLabel.textContent = 'Order Details';
