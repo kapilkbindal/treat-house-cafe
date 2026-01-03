@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Place Order | Treat House Cafe</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: #f8f4e9;
+      color: #2c1810;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: 160px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    /* LOCATION */
+    .location-box {
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    #locationLabel {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      margin-top: 8px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .debug {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    /* MENU */
+    .menu-category {
+      margin-bottom: 24px;
+    }
+
+    .menu-category h2 {
+      font-size: 1.2rem;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #e0d6c8;
+      padding-bottom: 6px;
+    }
+
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 8px;
+      border-bottom: 1px dashed #ddd;
+    }
+
+    .menu-item-name {
+      font-weight: 500;
+    }
+
+    .menu-item-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .menu-item-price {
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .menu-btn {
+      border: none;
+      background: #6f4e37;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .menu-qty {
+      min-width: 18px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    /* CART BAR */
+    .cart-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #2c1810;
+      color: white;
+      padding: 12px 16px;
+      z-index: 100;
+    }
+
+    .cart-summary {
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cart-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1rem;
+    }
+
+    .place-order-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      background: #c97c5d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .place-order-btn:disabled {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>Place Your Order</h1>
+
+    <!-- LOCATION -->
+    <div class="location-box">
+      <div id="locationLabel">Loading order…</div>
+
+      <select id="modeSelect" class="hidden">
+        <option value="Dine-in">Dine-in</option>
+        <option value="Takeaway">Takeaway</option>
+        <option value="Delivery">Delivery</option>
+      </select>
+
+      <select id="locationSelect" class="hidden">
+        <option value="">Select Location</option>
+      </select>
+
+      <div class="debug" id="debugInfo"></div>
+    </div>
+
+    <!-- CUSTOMER INFO -->
+    <div class="location-box hidden" id="customerBox">
+      <input type="text" id="customerName" placeholder="Your Name (optional)" />
+      <input type="tel" id="customerMobile" placeholder="Mobile Number (optional)" />
+      <textarea id="customerAddress" class="hidden" placeholder="Delivery Address" style="width: 100%; margin-top: 8px; padding: 10px; font-family: inherit; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+    </div>
+
+    <!-- MENU -->
+    <div id="menuContainer"></div>
+  </div>
+
+  <!-- CART -->
+  <div id="cartBar" class="cart-bar hidden">
+    <div class="cart-summary">
+      <div class="cart-top">
+        <span id="cartCount">0 items</span>
+        <strong id="cartTotal">₹0</strong>
+      </div>
+      <button id="placeOrderBtn" class="place-order-btn">
+        Place Order
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="api.js"></script>
+  <script src="order.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        reg.update();
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('🔄 New version found. Reloading...');
+        window.location.reload();
+      });
+    }
+  </script>
+</body>
+</html>

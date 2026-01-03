@@ -2,6 +2,7 @@
   "name": "Treat House Cafe Dashboard",
   "short_name": "THC Dashboard",
   "start_url": "./dashboard.html",
+  "scope": "./dashboard",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#6F4E37",
