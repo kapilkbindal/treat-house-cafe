@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thc-dashboard-v5';
+const CACHE_NAME = 'thc-dashboard-v6';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
