@@ -80,13 +80,43 @@ function renderOrders() {
 }
 
 function renderOrder(o) {
-  const items = o.items.map(
-    i => `<tr><td>${i.name}</td><td>${i.qty}</td><td>₹${i.price}</td><td>₹${i.qty*i.price}</td></tr>`
+  // Separate delivery fee from food items
+  const foodItems = o.items.filter(i => i.itemId !== 'DELIVERY_FEE');
+  const deliveryItem = o.items.find(i => i.itemId === 'DELIVERY_FEE');
+  const deliveryFee = deliveryItem ? (deliveryItem.price * deliveryItem.qty) : 0;
+  const subtotal = foodItems.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const itemsHtml = foodItems.map(
+    i => `<tr><td style="padding:8px 4px">${i.name}</td><td style="text-align:center;padding:8px 4px">${i.qty}</td><td style="text-align:right;padding:8px 4px">₹${i.price}</td><td style="text-align:right;padding:8px 4px">₹${i.qty*i.price}</td></tr>`
   ).join('');
 
   const actions = getActions(o);
 
   const addressHtml = o['Address'] ? `<div style="font-size:0.9em; color:#666; margin-top:4px;">🏠 ${o['Address']}</div>` : '';
+
+  // Build Totals Footer
+  let footerHtml = `
+    <tr style="border-top: 1px solid #334155">
+      <td colspan="3" style="text-align:right; padding:8px 4px; font-weight:600">Subtotal</td>
+      <td style="text-align:right; padding:8px 4px; font-weight:600">₹${subtotal}</td>
+    </tr>
+  `;
+
+  if (deliveryFee > 0) {
+    footerHtml += `
+      <tr>
+        <td colspan="3" style="text-align:right; padding:4px 4px; color:#94a3b8; font-size:0.9em">Delivery Charge</td>
+        <td style="text-align:right; padding:4px 4px; color:#94a3b8; font-size:0.9em">₹${deliveryFee}</td>
+      </tr>
+    `;
+  }
+
+  footerHtml += `
+    <tr>
+      <td colspan="3" style="text-align:right; padding:8px 4px; font-weight:800; font-size:1.1em">Total</td>
+      <td style="text-align:right; padding:8px 4px; font-weight:800; font-size:1.1em">₹${o['Total']}</td>
+    </tr>
+  `;
 
   return `
     <div class="order" style="border-color: var(--${o['Order Status']})">
@@ -100,14 +130,16 @@ function renderOrder(o) {
       <div style="opacity:.85">📍 ${o['Location ID']} • ${o['Mode']}</div>
       ${addressHtml}
 
-      <table>
-        <tr><th>Item</th><th>Qty</th><th>₹</th><th>Total</th></tr>
-        ${items}
+      <table style="width:100%; border-collapse:collapse; margin-top:10px">
+        <tr style="border-bottom:1px solid #334155">
+          <th style="text-align:left; padding:8px 4px">Item</th>
+          <th style="text-align:center; padding:8px 4px">Qty</th>
+          <th style="text-align:right; padding:8px 4px">Price</th>
+          <th style="text-align:right; padding:8px 4px">Total</th>
+        </tr>
+        ${itemsHtml}
+        ${footerHtml}
       </table>
-
-      <div style="margin-top:8px;font-weight:800">
-        Subtotal: ₹${o['Total']}
-      </div>
 
       <div class="actions">
         ${actions}

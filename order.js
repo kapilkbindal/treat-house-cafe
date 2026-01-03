@@ -13,8 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const menuContainer = document.getElementById('menuContainer');
 
   const cartBar = document.getElementById('cartBar');
-  const cartCountEl = document.getElementById('cartCount');
-  const cartTotalEl = document.getElementById('cartTotal');
+  const cartTop = document.querySelector('.cart-top');
   const placeOrderBtn = document.getElementById('placeOrderBtn');
 
   const customerBox = document.getElementById('customerBox');
@@ -33,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const subtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
 
     let total = subtotal;
-    let feeText = '';
+    let deliveryFee = 0;
 
     // Check if delivery mode is active (Online or Staff selected Delivery)
     let isDelivery = (mode === 'online');
@@ -43,21 +42,45 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Delivery Fee Logic
     if (isDelivery && subtotal < 500 && subtotal > 0) {
-      total += 50;
-      feeText = ' (+₹50 Delivery)';
+      deliveryFee = 50;
+      total += deliveryFee;
     }
 
     if (count === 0) {
       cartBar.classList.add('hidden');
-      cartCountEl.textContent = '0 items';
-      cartTotalEl.textContent = '₹0';
       placeOrderBtn.disabled = true;
       return;
     }
 
     cartBar.classList.remove('hidden');
-    cartCountEl.textContent = `${count} item${count > 1 ? 's' : ''}`;
-    cartTotalEl.textContent = `₹${total}${feeText}`;
+    
+    // Build breakdown HTML
+    let breakdownHtml = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+        <span>Subtotal (${count} items)</span>
+        <span>₹${subtotal}</span>
+      </div>
+    `;
+    
+    if (deliveryFee > 0) {
+      breakdownHtml += `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; color:#ccc; font-size:0.9em">
+          <span>Delivery Charge</span>
+          <span>₹${deliveryFee}</span>
+        </div>
+      `;
+    }
+    
+    breakdownHtml += `
+      <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:1.1em; border-top:1px dashed #666; padding-top:4px; margin-bottom:8px">
+        <span>Total</span>
+        <span>₹${total}</span>
+      </div>
+    `;
+    
+    cartTop.innerHTML = breakdownHtml;
+    cartTop.style.display = 'block';
+    
     placeOrderBtn.disabled = false;
   }
 
