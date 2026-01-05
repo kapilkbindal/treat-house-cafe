@@ -32,9 +32,11 @@ let role = 'kitchen'; // Default, will be overwritten by auth
 
 const tabsEl = document.getElementById('tabs');
 const container = document.getElementById('orders');
+const modeFilterEl = document.getElementById('modeFilter');
 
 let activeStatus = null;
 let allOrders = [];
+let isNewestFirst = true; // Default sort order
 
 /* -----------------------------
    UI HELPERS
@@ -52,11 +54,44 @@ function setStatus(status) {
   renderOrders();
 }
 
+window.toggleSort = function() {
+  isNewestFirst = !isNewestFirst;
+  const btn = document.getElementById('sortBtn');
+  btn.textContent = isNewestFirst ? '⬇️ Newest' : '⬆️ Oldest';
+  renderOrders();
+};
+
 function renderOrders() {
   if (!Array.isArray(allOrders)) {
     console.error('Orders data is not an array:', allOrders);
     container.innerHTML = `<div class="empty">Error loading orders. See console for details.</div>`;
     return;
+  }
+
+  // Show sort button when data is loaded
+  const sortBtn = document.getElementById('sortBtn');
+  if (sortBtn) sortBtn.style.display = 'block';
+
+  const selectedMode = modeFilterEl.value || '';
+
+  // Determine if filter should be shown and what options to include
+  const isMultiModeStatus = ['OPEN', 'PREPARING', 'PARTIALLY_READY', 'READY', 'CLOSED', 'CANCELLED'].includes(activeStatus);
+  let showFilter = false;
+  let filterOptions = '';
+
+  if (isMultiModeStatus) {
+    if (role === 'manager') {
+      showFilter = true;
+      filterOptions = '<option value="">All Modes</option><option value="Dine-in">Dine-in</option><option value="Takeaway">Takeaway</option><option value="Delivery">Delivery</option>';
+    } else if (role === 'waiter') {
+      showFilter = true;
+      filterOptions = '<option value="">All Modes</option><option value="Dine-in">Dine-in</option><option value="Takeaway">Takeaway</option>';
+    }
+  }
+
+  modeFilterEl.style.display = showFilter ? 'block' : 'none';
+  if (showFilter) {
+    modeFilterEl.innerHTML = filterOptions;
   }
 
   const list = allOrders.filter(o => {
@@ -66,7 +101,17 @@ function renderOrders() {
     if (role === 'waiter' && o['Mode'] === 'Delivery') return false;
     if (role === 'delivery' && o['Mode'] !== 'Delivery') return false;
 
+    // Apply mode filter if a mode is selected
+    if (selectedMode && o['Mode'] !== selectedMode) return false;
+
     return true;
+  });
+
+  // Sort list based on Timestamp
+  list.sort((a, b) => {
+    const tA = new Date(a['Timestamp']).getTime();
+    const tB = new Date(b['Timestamp']).getTime();
+    return isNewestFirst ? tB - tA : tA - tB;
   });
 
   if (!list.length) {
@@ -172,9 +217,6 @@ function renderOrder(o) {
     <div class="order" style="border-color: var(--${o['Order Status']})">
       <div class="order-header">
         <div class="order-id">${o['Order ID']}</div>
-        <div class="badge" style="background: var(--${o['Order Status']})">
-          ${o['Order Status']}
-        </div>
       </div>
 
       <div style="opacity:.85">📍 ${o['Location ID']} • ${o['Mode']}</div>
@@ -498,6 +540,15 @@ function checkAuth() {
   currentUser = JSON.parse(stored);
   role = currentUser.role;
   
+  // Set default sort order based on role
+  if (role === 'manager') {
+    isNewestFirst = true;
+  } else {
+    isNewestFirst = false; // Oldest first for Kitchen, Waiter, Delivery
+  }
+  const btn = document.getElementById('sortBtn');
+  if (btn) btn.textContent = isNewestFirst ? '⬇️ Newest' : '⬆️ Oldest';
+
   document.getElementById('roleInfo').innerHTML = `
     ${currentUser.name} (${role.toUpperCase()}) 
     <button onclick="window.location.href='dashboard-order.html?mode=staff'" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer">New Order</button>
