@@ -84,6 +84,24 @@ const API = {
     });
   },
 
+  async updateItemStatus(orderId, itemId, nextStatus) {
+    const token = getAuthToken();
+    // Fire-and-forget to avoid CORS issues on file:// protocol
+    fetch(`${BASE_URL}?action=updateItemStatus`, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify({
+        action: 'updateItemStatus',
+        orderId,
+        itemId,
+        nextStatus,
+        token
+      })
+    });
+    // Immediately return a success promise as we can't read the actual response
+    return Promise.resolve({ success: true });
+  },
+
   /* -----------------------------
      MANAGER ACTIONS
   ----------------------------- */
@@ -107,6 +125,19 @@ const API = {
         action: 'cancelOrder',
         orderId,
         reason,
+        token
+      })
+    });
+  },
+
+  async editOrder(orderId, items) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=editOrder`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'editOrder',
+        orderId,
+        items,
         token
       })
     });

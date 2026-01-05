@@ -3,11 +3,11 @@
 ----------------------------- */
 
 const ROLE_TABS = {
-  kitchen: ['OPEN', 'PREPARING', 'READY'],
-  waiter: ['READY', 'SERVED', 'HANDED_OVER'],
-  delivery: ['READY', 'OUT_FOR_DELIVERY', 'DELIVERED'],
+  kitchen: ['OPEN', 'PREPARING', 'PARTIALLY_READY', 'READY'],
+  waiter: ['PARTIALLY_READY', 'READY', 'SERVED', 'HANDED_OVER'],
+  delivery: ['PARTIALLY_READY', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'],
   manager: [
-    'OPEN','PREPARING','READY','SERVED',
+    'OPEN','PREPARING','PARTIALLY_READY','READY','SERVED',
     'HANDED_OVER','OUT_FOR_DELIVERY',
     'DELIVERED','CLOSED','CANCELLED'
   ]
@@ -15,7 +15,7 @@ const ROLE_TABS = {
 
 const STATUS_FLOW = {
   OPEN: ['PREPARING'],
-  PREPARING: ['READY'],
+  // PREPARING and PARTIALLY_READY are now handled by item-level checkboxes
   READY: ['SERVED','HANDED_OVER','OUT_FOR_DELIVERY'],
   OUT_FOR_DELIVERY: ['DELIVERED'],
   SERVED: [],
@@ -62,11 +62,9 @@ function renderOrders() {
   const list = allOrders.filter(o => {
     if (o['Order Status'] !== activeStatus) return false;
 
-    // Filter READY orders based on Role & Mode
-    if (activeStatus === 'READY') {
-      if (role === 'waiter' && o['Mode'] === 'Delivery') return false;
-      if (role === 'delivery' && o['Mode'] !== 'Delivery') return false;
-    }
+    // Filter orders based on Role & Mode
+    if (role === 'waiter' && o['Mode'] === 'Delivery') return false;
+    if (role === 'delivery' && o['Mode'] !== 'Delivery') return false;
 
     return true;
   });
@@ -86,9 +84,58 @@ function renderOrder(o) {
   const deliveryFee = deliveryItem ? (deliveryItem.price * deliveryItem.qty) : 0;
   const subtotal = foodItems.reduce((s, i) => s + i.price * i.qty, 0);
 
-  const itemsHtml = foodItems.map(
-    i => `<tr><td style="padding:8px 4px">${i.name}</td><td style="text-align:center;padding:8px 4px">${i.qty}</td><td style="text-align:right;padding:8px 4px">₹${i.price}</td><td style="text-align:right;padding:8px 4px">₹${i.qty*i.price}</td></tr>`
-  ).join('');
+  // Check if all items have the same status
+  const firstStatus = foodItems.length > 0 ? (foodItems[0].status || 'OPEN') : null;
+  const allSameStatus = foodItems.every(i => (i.status || 'OPEN') === firstStatus);
+
+  const itemsHtml = foodItems.map(i => {
+    const iStatus = i.status || 'OPEN';
+    let actionBtn = '';
+    let statusBadge = '';
+
+    // Status Badge Color
+    let statusColor = '#64748b';
+    if (iStatus === 'READY') statusColor = '#3b82f6';
+    if (iStatus === 'SERVED') statusColor = '#8b5cf6';
+
+    // Only show status badge if it's NOT Open/Preparing AND statuses are mixed
+    if (!['OPEN', 'PREPARING'].includes(iStatus) && !allSameStatus) {
+      statusBadge = `<span class="item-status" style="background:${statusColor}">${iStatus}</span>`;
+    }
+
+    // Item-Level Actions
+    // Kitchen can mark items ready only when the order is PREPARING or PARTIALLY_READY
+    if ((role === 'kitchen' || role === 'manager') && ['PREPARING', 'PARTIALLY_READY'].includes(o['Order Status'])) {
+      // Don't show checkbox if item is already served/handed over
+      if (!['SERVED', 'HANDED_OVER'].includes(iStatus)) {
+        const isReady = iStatus === 'READY';
+        const nextState = isReady ? 'PREPARING' : 'READY'; // Allow un-checking
+        actionBtn = `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isReady ? 'checked' : ''} onchange="updateItem('${o['Order ID']}', '${i.itemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#22c55e; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isReady ? 'Ready' : 'Mark Ready'}</span></label>`;
+      }
+    }
+
+    if ((role === 'waiter' || role === 'manager') && iStatus === 'READY') {
+      const isTakeaway = o['Mode'] === 'Takeaway';
+      const nextState = isTakeaway ? 'HANDED_OVER' : 'SERVED';
+
+      // Dine-in: Allow partial serving (checkboxes). Takeaway: No item-level actions.
+      if (!isTakeaway) {
+        // Use a checkbox for serving individual items
+        const isServed = iStatus === 'SERVED' || iStatus === 'HANDED_OVER';
+        actionBtn += `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isServed ? 'checked disabled' : ''} onchange="updateItem('${o['Order ID']}', '${i.itemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#8b5cf6; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isServed ? 'Served' : 'Serve'}</span></label>`;
+      }
+    }
+
+    return `
+      <tr>
+        <td style="padding:8px 4px">
+          ${i.name} ${statusBadge} ${actionBtn}
+        </td>
+        <td style="text-align:center;padding:8px 4px">${i.qty}</td>
+        ${role !== 'kitchen' ? `<td style="text-align:right;padding:8px 4px">₹${i.price}</td>` : ''}
+        ${role !== 'kitchen' ? `<td style="text-align:right;padding:8px 4px">₹${i.qty*i.price}</td>` : ''}
+      </tr>`;
+  }).join('');
 
   const actions = getActions(o);
 
@@ -96,27 +143,30 @@ function renderOrder(o) {
 
   // Build Totals Footer
   let footerHtml = `
-    <tr style="border-top: 1px solid #334155">
-      <td colspan="3" style="text-align:right; padding:8px 4px; font-weight:600">Subtotal</td>
-      <td style="text-align:right; padding:8px 4px; font-weight:600">₹${subtotal}</td>
-    </tr>
   `;
 
-  if (deliveryFee > 0) {
+  if (role !== 'kitchen') {
+    footerHtml += `
+      <tr style="border-top: 1px solid #334155">
+        <td colspan="${role !== 'kitchen' ? 3 : 1}" style="text-align:right; padding:8px 4px; font-weight:600">Subtotal</td>
+        <td style="text-align:right; padding:8px 4px; font-weight:600">₹${subtotal}</td>
+      </tr>
+    `;
+    if (deliveryFee > 0) {
+      footerHtml += `
+        <tr>
+          <td colspan="3" style="text-align:right; padding:4px 4px; color:#94a3b8; font-size:0.9em">Delivery Charge</td>
+          <td style="text-align:right; padding:4px 4px; color:#94a3b8; font-size:0.9em">₹${deliveryFee}</td>
+        </tr>
+      `;
+    }
     footerHtml += `
       <tr>
-        <td colspan="3" style="text-align:right; padding:4px 4px; color:#94a3b8; font-size:0.9em">Delivery Charge</td>
-        <td style="text-align:right; padding:4px 4px; color:#94a3b8; font-size:0.9em">₹${deliveryFee}</td>
+        <td colspan="3" style="text-align:right; padding:8px 4px; font-weight:800; font-size:1.1em">Total</td>
+        <td style="text-align:right; padding:8px 4px; font-weight:800; font-size:1.1em">₹${o['Total']}</td>
       </tr>
     `;
   }
-
-  footerHtml += `
-    <tr>
-      <td colspan="3" style="text-align:right; padding:8px 4px; font-weight:800; font-size:1.1em">Total</td>
-      <td style="text-align:right; padding:8px 4px; font-weight:800; font-size:1.1em">₹${o['Total']}</td>
-    </tr>
-  `;
 
   return `
     <div class="order" style="border-color: var(--${o['Order Status']})">
@@ -134,8 +184,8 @@ function renderOrder(o) {
         <tr style="border-bottom:1px solid #334155">
           <th style="text-align:left; padding:8px 4px">Item</th>
           <th style="text-align:center; padding:8px 4px">Qty</th>
-          <th style="text-align:right; padding:8px 4px">Price</th>
-          <th style="text-align:right; padding:8px 4px">Total</th>
+          ${role !== 'kitchen' ? '<th style="text-align:right; padding:8px 4px">Price</th>' : ''}
+          ${role !== 'kitchen' ? '<th style="text-align:right; padding:8px 4px">Total</th>' : ''}
         </tr>
         ${itemsHtml}
         ${footerHtml}
@@ -152,7 +202,7 @@ function getActions(o) {
   const status = o['Order Status'];
   let buttons = [];
 
-  if (role === 'kitchen' && status === 'READY') {
+  if (role === 'kitchen' && (status === 'READY' || status === 'PARTIALLY_READY')) {
     return '';
   }
 
@@ -174,13 +224,28 @@ function getActions(o) {
       if (role === 'delivery' && validNext !== 'OUT_FOR_DELIVERY') nextStates = [];
     }
 
-    nextStates.forEach(next =>
-      buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}')">${next}</button>`)
-    );
+    if (status === 'READY') {
+      // For waiters, show the special "Serve All" or "Hand Over" button
+      if (role === 'waiter' && o['Mode'] !== 'Delivery') {
+        const btnLabel = o['Mode'] === 'Takeaway' ? 'Hand Over' : 'Serve All';
+        buttons.push(`<button onclick="serveAllReadyItems('${o['Order ID']}')" style="background:#8b5cf6">${btnLabel}</button>`);
+      } else {
+        // For other roles (Manager, Delivery), use the standard flow
+        nextStates.forEach(next =>
+          buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}')">${next}</button>`)
+        );
+      }
+    } else {
+      // For all other statuses (OPEN, PREPARING, etc.)
+      nextStates.forEach(next =>
+        buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}')">${next}</button>`)
+      );
+    }
   }
 
   if (role === 'manager' && status !== 'CANCELLED') {
     buttons.push(`<button onclick="cancelOrder('${o['Order ID']}')" style="background:#ef4444">Cancel</button>`);
+    buttons.push(`<button onclick="openEditOrder('${o['Order ID']}')" style="background:#f59e0b">Edit</button>`);
     
     if (['SERVED', 'HANDED_OVER', 'DELIVERED'].includes(status)) {
       buttons.push(`<button onclick="openCloseModal('${o['Order ID']}')" style="background:#22c55e">Close</button>`);
@@ -242,10 +307,102 @@ window.updateStatus = async function(orderId, nextStatus) {
   }
 };
 
+window.updateItem = async function(orderId, itemId, nextStatus) {
+  try {
+    await API.updateItemStatus(orderId, itemId, nextStatus);
+    // The API call now returns immediately. We wait a bit for the server to process, then reload.
+    setTimeout(loadOrders, 750);
+  } catch (err) {
+    alert('Failed to update item: ' + err.message);
+  }
+};
+
+window.serveAllReadyItems = async function(orderId) {
+  const order = allOrders.find(o => o['Order ID'] === orderId);
+  if (!order) return;
+
+  const nextStatus = order['Mode'] === 'Takeaway' ? 'HANDED_OVER' : 'SERVED';
+
+  // Create a list of promises for all 'READY' items
+  const updatePromises = order.items
+    .filter(item => item.status === 'READY')
+    .map(item => API.updateItemStatus(orderId, item.itemId, nextStatus));
+
+  await Promise.all(updatePromises);
+  setTimeout(loadOrders, 750); // Refresh after all updates are likely done
+};
+
 window.cancelOrder = async function(orderId) {
   if (!confirm('Cancel this order?')) return;
   await API.cancelOrder(orderId);
   loadOrders();
+};
+
+/* -----------------------------
+   EDIT ORDER LOGIC
+----------------------------- */
+let editOrderData = null;
+
+window.openEditOrder = function(orderId) {
+  const order = allOrders.find(o => o['Order ID'] === orderId);
+  if (!order) return;
+  
+  // Deep copy items to avoid mutating local state before save
+  editOrderData = JSON.parse(JSON.stringify(order));
+  document.getElementById('editOrderId').textContent = orderId;
+  renderEditItems();
+  document.getElementById('editOrderModal').classList.remove('hidden');
+};
+
+function renderEditItems() {
+  const container = document.getElementById('editItemsList');
+  let subtotal = 0;
+  
+  const html = editOrderData.items.map((item, index) => {
+    subtotal += item.price * item.qty;
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #eee">
+        <div>
+          <div style="font-weight:600">${item.name}</div>
+          <div style="font-size:0.8em; color:#666">₹${item.price} x ${item.qty}</div>
+        </div>
+        <div style="display:flex; gap:8px">
+          <button onclick="changeEditQty(${index}, -1)" style="padding:4px 8px; background:#94a3b8">-</button>
+          <button onclick="changeEditQty(${index}, 1)" style="padding:4px 8px; background:#94a3b8">+</button>
+          <button onclick="removeEditItem(${index})" style="padding:4px 8px; background:#ef4444">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = html;
+  document.getElementById('editSubtotal').textContent = '₹' + subtotal;
+}
+
+window.changeEditQty = function(index, delta) {
+  const item = editOrderData.items[index];
+  item.qty += delta;
+  if (item.qty <= 0) {
+    editOrderData.items.splice(index, 1);
+  }
+  renderEditItems();
+};
+
+window.removeEditItem = function(index) {
+  if(confirm('Remove this item?')) {
+    editOrderData.items.splice(index, 1);
+    renderEditItems();
+  }
+};
+
+window.submitEditOrder = async function() {
+  try {
+    await API.editOrder(editOrderData['Order ID'], editOrderData.items);
+    document.getElementById('editOrderModal').classList.add('hidden');
+    loadOrders();
+  } catch (err) {
+    alert('Failed to save order: ' + err.message);
+  }
 };
 
 /* -----------------------------

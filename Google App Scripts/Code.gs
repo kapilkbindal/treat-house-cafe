@@ -64,6 +64,13 @@ function doPost(e) {
         return routeStatusUpdate(payload);
       }
 
+      case 'updateItemStatus': {
+        // Granular item updates
+        const user = authenticate(payload.token, ['kitchen', 'waiter', 'manager']);
+        logAction(user.username, 'UPDATE_ITEM', `${payload.orderId} [${payload.itemId}] -> ${payload.nextStatus}`);
+        return updateOrderItemStatus(payload.orderId, payload.itemId, payload.nextStatus);
+      }
+
       case 'closeOrder': {
         const user = authenticate(payload.token, ['manager']); // Only manager
         logAction(user.username, 'CLOSE_ORDER', `ID: ${payload.orderId}, Total: ${payload.finalAmount}`);
@@ -74,6 +81,12 @@ function doPost(e) {
         const user = authenticate(payload.token, ['manager']); // Only manager
         logAction(user.username, 'CANCEL_ORDER', `ID: ${payload.orderId}, Reason: ${payload.reason}`);
         return cancelOrder(payload);
+      }
+
+      case 'editOrder': {
+        const user = authenticate(payload.token, ['manager']);
+        logAction(user.username, 'EDIT_ORDER', `ID: ${payload.orderId}`);
+        return editOrder(payload);
       }
 
       case 'login':

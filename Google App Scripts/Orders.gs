@@ -60,6 +60,12 @@ function handleCreateOrder(payload) {
     }
     const orderId = `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
 
+    // Initialize items with OPEN status
+    const itemsWithStatus = items.map(i => ({
+      ...i,
+      status: 'OPEN'
+    }));
+
     // -------- Append ONLY creation data --------
     sheet.appendRow([
       orderId,               // A
@@ -70,7 +76,7 @@ function handleCreateOrder(payload) {
       customerName,          // F
       mobile,                // G
       address,               // H
-      JSON.stringify(items), // I
+      JSON.stringify(itemsWithStatus), // I
       total,                 // J
       'OPEN',                // K
       '', '', '', '', '', '', '' // L-R (Payment Status, Discount %, Discount Amt, Final Amt, Pay Mode, Closed At, Notes)

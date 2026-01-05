@@ -302,6 +302,67 @@ function updateOrderById(orderId, updates) {
   throw new Error('Order not found');
 }
 
+function updateOrderItemStatus(orderId, itemId, nextStatus) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Orders');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0].map(h => String(h).trim());
+  const itemsColIndex = headers.indexOf('Items JSON');
+  const statusColIndex = headers.indexOf('Order Status');
+  const modeColIndex = headers.indexOf('Mode');
+
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() === String(orderId).trim()) {
+      
+      const itemsJson = data[i][itemsColIndex];
+      const items = JSON.parse(itemsJson || '[]');
+      
+      // 1. Update specific item
+      let itemFound = false;
+      items.forEach(item => {
+        if (String(item.itemId) === String(itemId)) {
+          item.status = nextStatus;
+          itemFound = true;
+        }
+      });
+
+      if (!itemFound) throw new Error('Item not found in order');
+
+      // 2. Determine Aggregate Order Status
+      let newOrderStatus = data[i][statusColIndex]; // Default to current
+      
+      // Filter out non-kitchen items (like Delivery Fee) for status calculation
+      const statusItems = items.filter(i => i.itemId !== 'DELIVERY_FEE');
+
+      const allOpen = statusItems.every(i => i.status === 'OPEN');
+      const allServed = statusItems.every(i => i.status === 'SERVED' || i.status === 'HANDED_OVER');
+      const allReadyOrServed = statusItems.every(i => ['READY', 'SERVED', 'HANDED_OVER'].includes(i.status));
+      const anyReady = statusItems.some(i => i.status === 'READY');
+      const anyPreparing = statusItems.some(i => i.status === 'PREPARING');
+
+      if (allServed) {
+        const mode = (modeColIndex !== -1) ? data[i][modeColIndex] : 'Dine-in';
+        newOrderStatus = (mode === 'Takeaway') ? 'HANDED_OVER' : 'SERVED';
+      } else if (allReadyOrServed) {
+        newOrderStatus = 'READY';
+      } else if (anyReady) {
+        newOrderStatus = 'PARTIALLY_READY';
+      } else if (anyPreparing) {
+        newOrderStatus = 'PREPARING';
+      } else if (allOpen) {
+        newOrderStatus = 'OPEN';
+      }
+
+      // 3. Save
+      sheet.getRange(i + 1, itemsColIndex + 1).setValue(JSON.stringify(items));
+      sheet.getRange(i + 1, statusColIndex + 1).setValue(newOrderStatus);
+      SpreadsheetApp.flush();
+
+      return { success: true, orderStatus: newOrderStatus };
+    }
+  }
+  throw new Error('Order not found');
+}
+
 function setupSheet() {
   const sheet = SpreadsheetApp.getActive().getSheetByName('Orders');
   if (!sheet) {

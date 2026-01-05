@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thc-dashboard-v7';
+const CACHE_NAME = 'treat-house-cafe-v1.01';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
