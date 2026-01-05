@@ -1,4 +1,4 @@
-const CACHE_NAME = 'treat-house-cafe-v1.03';
+const CACHE_NAME = 'treat-house-cafe-v1.07';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -6,17 +6,20 @@ self.addEventListener('install', (e) => {
     caches.open(CACHE_NAME).then((cache) => cache.addAll([
       './',
       './index.html',
-      './order.html',
-      './dashboard-order.html',
-      './dashboard.html',
-      './admin.html',
-      './styles.css',
-      './script.js',
-      './newsletter.js',
-      './order.js',
-      './dashboard.js',
-      './admin.js',
-      './api.js',
+      './pages/order.html',
+      './pages/dashboard-order.html',
+      './pages/dashboard.html',
+      './pages/admin.html',
+      './pages/privacy-policy.html',
+      './pages/terms.html',
+      './styles/styles.css',
+      './scripts/pricing.js',
+      './scripts/script.js',
+      './scripts/newsletter.js',
+      './scripts/order.js',
+      './scripts/dashboard.js',
+      './scripts/admin.js',
+      './scripts/api.js',
       './manifest.json'
     ]))
   );

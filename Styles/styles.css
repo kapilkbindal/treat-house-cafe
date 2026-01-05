@@ -338,7 +338,7 @@ ul {
     height: 100vh;
     min-height: 600px;
     background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
-                url('assets/hero-bg.jpg') center/cover no-repeat;
+                url('../assets/hero-bg.jpg') center/cover no-repeat;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1238,4 +1238,3 @@ button {
   border-radius: 6px;
   font-size: 1rem;
 }
-

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Orders Dashboard | Treat House Cafe</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="../manifest.json">
 
   <style>
     :root {
@@ -303,8 +304,8 @@
   <button id="installBtn" style="display:none; position:absolute; bottom:40px; width:90%; max-width:400px; background:#3b82f6; color:white; border:none; padding:16px; border-radius:12px; font-size:1.1rem; font-weight:bold; cursor:pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.3);">📲 Install App</button>
 </div>
 
-<script src="api.js"></script>
-<script src="dashboard.js"></script>
+<script src="../scripts/api.js"></script>
+<script src="../scripts/dashboard.js"></script>
 <script>
   // PWA Install Logic
   let deferredPrompt;
@@ -332,7 +333,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
+    navigator.serviceWorker.register('../sw.js').then(reg => {
       // Check for updates immediately on load
       reg.update();
     }).catch(err => console.log('Service Worker registration failed (offline/local):', err));

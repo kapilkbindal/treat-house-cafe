@@ -293,12 +293,12 @@
   </div>
 </div>
 
-<script src="api.js"></script>
-<script src="admin.js"></script>
+<script src="../scripts/api.js"></script>
+<script src="../scripts/admin.js"></script>
 <script>
   // Auto-update logic for Admin
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
+    navigator.serviceWorker.register('../sw.js').then(reg => {
       reg.update();
     }).catch(err => console.log('Service Worker registration failed:', err));
 

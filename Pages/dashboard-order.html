@@ -245,14 +245,15 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="api.js"></script>
-  <script src="order.js"></script>
+  <script src="../scripts/api.js"></script>
+  <script src="../scripts/order.js"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(reg => {
+      navigator.serviceWorker.register('../sw.js').then(reg => {
         reg.update();
       }).catch(err => console.log('Service Worker registration failed:', err));
+
 
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         console.log('🔄 New version found. Reloading...');

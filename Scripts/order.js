@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (mode === 'staff') {
     // Security: Restrict staff mode to dashboard-order.html
     if (!window.location.pathname.includes('dashboard-order.html')) {
-      window.location.href = 'index.html';
+      window.location.href = '../index.html';
       return;
     }
 
