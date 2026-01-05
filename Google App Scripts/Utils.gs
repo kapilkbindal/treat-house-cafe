@@ -83,6 +83,14 @@ function authenticate(token, allowedRoles) {
   throw new Error('Unauthorized: Invalid token');
 }
 
+function authenticatePublicAction(secret) {
+  const expectedSecret = PropertiesService.getScriptProperties().getProperty('API_SECRET_KEY');
+  if (!expectedSecret || secret !== expectedSecret) {
+    throw new Error('Unauthorized: Invalid API Key');
+  }
+  return true;
+}
+
 function logoutUser(token) {
   const sheet = SpreadsheetApp.getActive().getSheetByName('Tokens');
   if (!sheet) return;
@@ -300,6 +308,14 @@ function updateOrderById(orderId, updates) {
     }
   }
   throw new Error('Order not found');
+}
+
+function updateOrderStatus(orderId, nextStatus) {
+  // This function can replace updateKitchenStatus, updateWaiterStatus, etc.
+  const result = updateOrderById(orderId, {
+    'Order Status': nextStatus
+  });
+  return jsonResponse(result);
 }
 
 function updateOrderItemStatus(orderId, itemId, nextStatus) {

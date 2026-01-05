@@ -52,9 +52,11 @@ function doPost(e) {
 
     switch (payload.action) {
       case 'newsletter':
+        authenticatePublicAction(payload.secret);
         return handleNewsletter(payload);
 
       case 'createOrder':
+        authenticatePublicAction(payload.secret);
         return handleCreateOrder(payload);
 
       case 'updateOrderStatus': {
@@ -133,9 +135,9 @@ function doPost(e) {
 function routeStatusUpdate(payload) {
   const s = payload.nextStatus;
   
-  if (['PREPARING', 'READY'].includes(s)) return updateKitchenStatus(payload);
-  if (['SERVED', 'HANDED_OVER'].includes(s)) return updateWaiterStatus(payload);
-  if (['OUT_FOR_DELIVERY', 'DELIVERED'].includes(s)) return updateDeliveryStatus(payload);
+  // All these can now be handled by a single function
+  const allowedStatuses = ['PREPARING', 'READY', 'SERVED', 'HANDED_OVER', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+  if (allowedStatuses.includes(s)) return updateOrderStatus(payload.orderId, s);
   
   return jsonResponse({ success: false, message: 'Unknown status transition: ' + s });
 }

@@ -513,6 +513,10 @@ window.handleLogin = async function() {
   const u = document.getElementById('loginUser').value;
   const p = document.getElementById('loginPass').value;
   const err = document.getElementById('loginError');
+  const btn = document.querySelector('#loginOverlay button');
+
+  btn.disabled = true;
+  btn.textContent = 'Logging in...';
   
   try {
     const res = await API.login(u, p);
@@ -521,9 +525,13 @@ window.handleLogin = async function() {
       location.reload();
     } else {
       err.textContent = res.message;
+      btn.disabled = false;
+      btn.textContent = 'Login';
     }
   } catch (e) {
     err.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Login';
   }
 };
 

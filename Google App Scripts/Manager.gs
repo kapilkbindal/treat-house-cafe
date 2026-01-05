@@ -28,20 +28,23 @@ function cancelOrder({ orderId, reason }) {
 
 function editOrder(payload) {
   // payload: { orderId, items: [...] }
-  // Recalculate totals based on new items
-  const subtotal = payload.items.reduce((s, i) => s + (i.price * i.qty), 0);
-  
-  // We need to fetch existing discount info to recalculate final
-  // For simplicity in this edit flow, we will reset discounts or need to read them first.
-  // Better approach: Read current order data to preserve discount % if possible, 
-  // but for now let's assume the manager re-applies discounts at close if needed.
-  // OR: Just update Subtotal and Items, and let Close Order handle the rest.
-  
-  // However, we should update the 'Total' column (Subtotal)
-  
+  // SECURITY: Recalculate total on the server using master price list to prevent tampering.
+  const menu = getMenu(); // Fetch master price list
+  let serverSubtotal = 0;
+
+  const validatedItems = payload.items.map(clientItem => {
+    const menuItem = menu.find(m => m.itemId === clientItem.itemId);
+    if (!menuItem) throw new Error(`Invalid item ID in payload: ${clientItem.itemId}`);
+    
+    // Use server price, not client price
+    serverSubtotal += menuItem.price * clientItem.qty;
+
+    return { ...clientItem, price: menuItem.price }; // Return item with correct price
+  });
+
   const result = updateOrderById(payload.orderId, {
-    'Items JSON': JSON.stringify(payload.items),
-    'Total': subtotal,
+    'Items JSON': JSON.stringify(validatedItems),
+    'Total': serverSubtotal,
     // Reset final amount logic or keep it simple? 
     // If we change items, the previous Final Amount is invalid.
     // Let's clear payment fields to force re-closing

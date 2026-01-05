@@ -17,16 +17,26 @@ function checkAdminAuth() {
 async function adminLogin() {
   const u = document.getElementById('adminUser').value;
   const p = document.getElementById('adminPass').value;
+  const err = document.getElementById('loginError');
+  const btn = document.querySelector('#loginSection button');
+
+  btn.disabled = true;
+  btn.textContent = 'Logging in...';
+
   try {
     const res = await API.login(u, p);
     if (res.success && res.user.role === 'admin') {
       sessionStorage.setItem('thc_user', JSON.stringify(res.user));
       location.reload();
     } else {
-      document.getElementById('loginError').textContent = res.success ? 'Not an admin account' : res.message;
+      err.textContent = res.success ? 'Not an admin account' : res.message;
+      btn.disabled = false;
+      btn.textContent = 'Login';
     }
   } catch (e) {
-    document.getElementById('loginError').textContent = e.message;
+    err.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Login';
   }
 }
 

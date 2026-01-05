@@ -1,4 +1,4 @@
-const CACHE_NAME = 'treat-house-cafe-v1.01';
+const CACHE_NAME = 'treat-house-cafe-v1.02';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

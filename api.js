@@ -5,6 +5,9 @@
 const BASE_URL =
   'https://script.google.com/macros/s/AKfycbyfnzEZUouEi1jJ99RovxedzMwBKOX_dEScMCTAETW1vPn89_gRxk2TrIDjt0cmUshicA/exec';
 
+// This is a "public" key, safe to expose in frontend code. It's just to prevent simple spam.
+const PUBLIC_API_KEY = 'your-very-secret-random-string';
+
 function getAuthToken() {
   try {
     const user = JSON.parse(sessionStorage.getItem('thc_user'));
@@ -63,6 +66,7 @@ const API = {
       method: 'POST',
       body: JSON.stringify({
         action: 'createOrder',
+        secret: PUBLIC_API_KEY,
         ...payload
       })
     });
@@ -151,6 +155,7 @@ const API = {
       method: 'POST',
       body: JSON.stringify({
         action: 'newsletter',
+        secret: PUBLIC_API_KEY,
         email
       })
     });
