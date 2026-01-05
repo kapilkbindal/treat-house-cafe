@@ -1,6 +1,6 @@
 {
-  "name": "Treat House Cafe Dashboard",
-  "short_name": "THC Dashboard",
+  "name": "Treat House Cafe",
+  "short_name": "THC",
   "start_url": "./pages/dashboard.html",
   "scope": "./pages/dashboard",
   "display": "standalone",
