@@ -4,10 +4,12 @@
  */
 
 function handleCreateOrder(payload) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Orders');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ordSheet = ss.getSheetByName('Orders');
+  const itmSheet = ss.getSheetByName('OrderItems');
 
-  if (!sheet) {
-    return jsonResponse({ success: false, message: 'Orders sheet not found' });
+  if (!ordSheet || !itmSheet) {
+    return jsonResponse({ success: false, message: 'Sheets not found (Orders or OrderItems)' });
   }
 
   const lock = LockService.getScriptLock();
@@ -43,12 +45,12 @@ function handleCreateOrder(payload) {
     const prefix = `ORD-${dateStr}-`;
 
     // Calculate daily sequence by checking existing IDs
-    const lastRow = sheet.getLastRow();
+    const lastRow = ordSheet.getLastRow();
     let maxSeq = 0;
 
     if (lastRow > 1) {
       // Get all IDs from Column A (skip header)
-      const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      const ids = ordSheet.getRange(2, 1, lastRow - 1, 1).getValues();
       for (let i = 0; i < ids.length; i++) {
         const id = String(ids[i][0]);
         if (id.startsWith(prefix)) {
@@ -60,14 +62,9 @@ function handleCreateOrder(payload) {
     }
     const orderId = `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
 
-    // Initialize items with OPEN status
-    const itemsWithStatus = items.map(i => ({
-      ...i,
-      status: 'OPEN'
-    }));
-
     // -------- Append ONLY creation data --------
-    sheet.appendRow([
+    // New Schema: A-Q (No Items JSON column)
+    ordSheet.appendRow([
       orderId,               // A
       now,                   // B
       locationId,            // C
@@ -76,11 +73,26 @@ function handleCreateOrder(payload) {
       customerName,          // F
       mobile,                // G
       address,               // H
-      JSON.stringify(itemsWithStatus), // I
-      total,                 // J
-      'OPEN',                // K
-      '', '', '', '', '', '', '' // L-R (Payment Status, Discount %, Discount Amt, Final Amt, Pay Mode, Closed At, Notes)
+      total,                 // I (Was J)
+      'OPEN',                // J (Was K)
+      'PENDING',             // K (Was L)
+      '', '', '', '', '', '' // L-Q
     ]);
+
+    // -------- Append Items to OrderItems Sheet --------
+    const itemRows = items.map((item, index) => [
+      orderId,
+      `${orderId}-${String(index + 1).padStart(3, '0')}`, // Order Item ID (Unique)
+      item.itemId,
+      item.name,
+      item.price,
+      item.qty,
+      'OPEN'
+    ]);
+
+    if (itemRows.length > 0) {
+      itmSheet.getRange(itmSheet.getLastRow() + 1, 1, itemRows.length, 7).setValues(itemRows);
+    }
 
     return jsonResponse({ success: true, orderId });
 

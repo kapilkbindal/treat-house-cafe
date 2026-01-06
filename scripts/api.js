@@ -75,7 +75,7 @@ const API = {
   /* -----------------------------
      ORDER STATUS UPDATE (GENERIC)
   ----------------------------- */
-  async updateOrderStatus(orderId, nextStatus) {
+  async updateOrderStatus(orderId, nextStatus, cascade = true) {
     const token = getAuthToken();
     return safeFetch(`${BASE_URL}?action=updateOrderStatus&orderId=${encodeURIComponent(orderId)}&nextStatus=${encodeURIComponent(nextStatus)}`, {
       method: 'POST',
@@ -83,27 +83,25 @@ const API = {
         action: 'updateOrderStatus',
         orderId,
         nextStatus,
+        cascade,
         token
       })
     });
   },
 
-  async updateItemStatus(orderId, itemId, nextStatus) {
+  async updateItemStatus(orderId, orderItemId, nextStatus) {
     const token = getAuthToken();
-    // Fire-and-forget to avoid CORS issues on file:// protocol
-    fetch(`${BASE_URL}?action=updateItemStatus`, {
+    // Use safeFetch to ensure sequential processing and avoid race conditions
+    return safeFetch(`${BASE_URL}?action=updateItemStatus`, {
       method: 'POST',
-      mode: 'no-cors',
       body: JSON.stringify({
         action: 'updateItemStatus',
         orderId,
-        itemId,
+        orderItemId,
         nextStatus,
         token
       })
     });
-    // Immediately return a success promise as we can't read the actual response
-    return Promise.resolve({ success: true });
   },
 
   /* -----------------------------

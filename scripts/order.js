@@ -222,8 +222,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       const result = await API.placeOrder(payload);
-      alert(`Order placed! Order ID: ${result.orderId}`);
-      location.reload();
+      if (result.success) {
+        alert(`Order placed! Order ID: ${result.orderId}`);
+        location.reload();
+      } else {
+        alert('Order failed: ' + (result.message || 'Unknown error'));
+      }
     } catch (err) {
       alert(err.message || 'Order failed');
     } finally {

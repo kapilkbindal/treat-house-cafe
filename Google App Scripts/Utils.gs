@@ -271,16 +271,71 @@ function updateUser({ targetUsername, name, role }) {
 ----------------------------- */
 
 function getOrders(params = {}) {
-  const sheet = SpreadsheetApp.getActive().getSheetByName('Orders');
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift();
+  const ss = SpreadsheetApp.getActive();
+  const ordSheet = ss.getSheetByName('Orders');
+  const itmSheet = ss.getSheetByName('OrderItems');
 
-  return data.map(row => {
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = row[i]);
-    obj.items = JSON.parse(obj['Items JSON'] || '[]');
-    return obj;
-  });
+  if (!ordSheet || !itmSheet) {
+    return [];
+  }
+
+  const ordData = ordSheet.getDataRange().getValues();
+  const itmData = itmSheet.getDataRange().getValues();
+
+  // 1. Parse Orders (Skip Header)
+  // Headers: Order ID(0), Timestamp(1), Location(2), Mode(3), Staff(4), Cust(5), Mob(6), Addr(7), Total(8), Status(9)...
+  const ordersMap = {};
+  const ordersList = [];
+
+  for (let i = 1; i < ordData.length; i++) {
+    const row = ordData[i];
+    const id = row[0];
+    if (!id) continue;
+
+    const orderObj = {
+      'Order ID': id,
+      'Timestamp': row[1],
+      'Location ID': row[2],
+      'Mode': row[3],
+      'Staff Member': row[4],
+      'Customer Name': row[5],
+      'Mobile': row[6],
+      'Address': row[7],
+      'Total': row[8],
+      'Order Status': row[9],
+      'Payment Status': row[10],
+      'Discount %': row[11],
+      'Discount Amount': row[12],
+      'Final Amount': row[13],
+      'Payment Mode': row[14],
+      'Closed At': row[15],
+      'Notes': row[16],
+      'items': []
+    };
+    
+    ordersMap[id] = orderObj;
+    ordersList.push(orderObj);
+  }
+
+  // 2. Parse Items and Attach
+  // Headers: Order ID(0), Order Item ID(1), Item ID(2), Name(3), Price(4), Qty(5), Status(6)
+  for (let i = 1; i < itmData.length; i++) {
+    const row = itmData[i];
+    const orderId = row[0];
+    
+    if (ordersMap[orderId]) {
+      ordersMap[orderId].items.push({
+        orderItemId: row[1],
+        itemId: row[2],
+        name: row[3],
+        price: row[4],
+        qty: row[5],
+        status: row[6]
+      });
+    }
+  }
+
+  return ordersList;
 }
 
 function updateOrderById(orderId, updates) {
@@ -310,106 +365,82 @@ function updateOrderById(orderId, updates) {
   throw new Error('Order not found');
 }
 
-function updateOrderStatus(orderId, nextStatus) {
+function updateOrderStatus(orderId, nextStatus, cascade = true) {
   // This function can replace updateKitchenStatus, updateWaiterStatus, etc.
   const result = updateOrderById(orderId, {
     'Order Status': nextStatus
   });
+
+  // Cascade status to items to maintain consistency and prevent frontend "self-healing" reversion
+  // We do NOT cascade for PARTIALLY_READY as that implies mixed item states.
+  const cascadeStatuses = [
+    'OPEN', 'PREPARING', 'READY', 'SERVED', 
+    'HANDED_OVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'
+  ];
+
+  if (cascade === true && cascadeStatuses.includes(nextStatus)) {
+    const sheet = SpreadsheetApp.getActive().getSheetByName('OrderItems');
+    const data = sheet.getDataRange().getValues();
+    const ranges = [];
+    for (let i = 1; i < data.length; i++) {
+      // Robust comparison (String + Trim)
+      if (String(data[i][0]).trim() === String(orderId).trim()) {
+        // Only update if different (optimization)
+        // Status is now at index 6 (Column G)
+        if (data[i][6] !== nextStatus) ranges.push(`G${i + 1}`);
+      }
+    }
+    if (ranges.length > 0) sheet.getRangeList(ranges).setValue(nextStatus);
+  }
+
   return jsonResponse(result);
 }
 
-function updateOrderItemStatus(orderId, itemId, nextStatus) {
-  const sheet = SpreadsheetApp.getActive().getSheetByName('Orders');
+function updateOrderItemStatus(orderId, orderItemId, nextStatus) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('OrderItems');
   const data = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => String(h).trim());
-  const itemsColIndex = headers.indexOf('Items JSON');
-  const statusColIndex = headers.indexOf('Order Status');
-  const modeColIndex = headers.indexOf('Mode');
-
-  for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][0]).trim() === String(orderId).trim()) {
-      
-      const itemsJson = data[i][itemsColIndex];
-      const items = JSON.parse(itemsJson || '[]');
-      
-      // 1. Update specific item
-      let itemFound = false;
-      items.forEach(item => {
-        if (String(item.itemId) === String(itemId)) {
-          item.status = nextStatus;
-          itemFound = true;
-        }
-      });
-
-      if (!itemFound) throw new Error('Item not found in order');
-
-      // 2. Determine Aggregate Order Status
-      let newOrderStatus = data[i][statusColIndex]; // Default to current
-      
-      // Filter out non-kitchen items (like Delivery Fee) for status calculation
-      const statusItems = items.filter(i => i.itemId !== 'DELIVERY_FEE');
-
-      const allOpen = statusItems.every(i => i.status === 'OPEN');
-      const allServed = statusItems.every(i => i.status === 'SERVED' || i.status === 'HANDED_OVER');
-      const allReadyOrServed = statusItems.every(i => ['READY', 'SERVED', 'HANDED_OVER'].includes(i.status));
-      const anyReady = statusItems.some(i => i.status === 'READY');
-      const anyPreparing = statusItems.some(i => i.status === 'PREPARING');
-
-      if (allServed) {
-        const mode = (modeColIndex !== -1) ? data[i][modeColIndex] : 'Dine-in';
-        newOrderStatus = (mode === 'Takeaway') ? 'HANDED_OVER' : 'SERVED';
-      } else if (allReadyOrServed) {
-        newOrderStatus = 'READY';
-      } else if (anyReady) {
-        newOrderStatus = 'PARTIALLY_READY';
-      } else if (anyPreparing) {
-        newOrderStatus = 'PREPARING';
-      } else if (allOpen) {
-        newOrderStatus = 'OPEN';
-      }
-
-      // 3. Save
-      sheet.getRange(i + 1, itemsColIndex + 1).setValue(JSON.stringify(items));
-      sheet.getRange(i + 1, statusColIndex + 1).setValue(newOrderStatus);
-      SpreadsheetApp.flush();
-
-      return { success: true, orderStatus: newOrderStatus };
+  
+  // Find row matching OrderID AND Order Item ID
+  for (let i = 1; i < data.length; i++) {
+    // Col 0: Order ID, Col 1: Order Item ID
+    if (String(data[i][0]) === String(orderId) && String(data[i][1]) === String(orderItemId)) {
+      // Update Status (Column G -> Index 6)
+      sheet.getRange(i + 1, 7).setValue(nextStatus);
+      return jsonResponse({ success: true });
     }
   }
-  throw new Error('Order not found');
+  
+  return jsonResponse({ success: false, message: 'Item not found' });
 }
 
 function setupSheet() {
-  const sheet = SpreadsheetApp.getActive().getSheetByName('Orders');
-  if (!sheet) {
-    SpreadsheetApp.getActive().insertSheet('Orders');
-  }
+  // Set the API Secret to match frontend (scripts/api.js)
+  PropertiesService.getScriptProperties().setProperty('API_SECRET_KEY', 'your-very-secret-random-string');
+
+  const ss = SpreadsheetApp.getActive();
   
-  // EXACT headers required by Orders.gs and Utils.gs
-  const headers = [
-    'Order ID',       // A
-    'Timestamp',      // B (Date)
-    'Location ID',    // C
-    'Mode',           // D
-    'Staff Member',   // E
-    'Customer Name',  // F
-    'Mobile',         // G
-    'Address',        // H
-    'Items JSON',     // I
-    'Total',          // J
-    'Order Status',   // K
-    'Payment Status', // L
-    'Discount %',     // M
-    'Discount Amount',// N
-    'Final Amount',   // O
-    'Payment Mode',   // P
-    'Closed At',      // Q
-    'Notes'           // R
+  // 1. Setup Orders Sheet
+  let ordSheet = ss.getSheetByName('Orders');
+  if (!ordSheet) ordSheet = ss.insertSheet('Orders');
+  
+  const ordHeaders = [
+    'Order ID', 'Timestamp', 'Location ID', 'Mode', 'Staff Member', 
+    'Customer Name', 'Mobile', 'Address', 'Total', 'Order Status', 
+    'Payment Status', 'Discount %', 'Discount Amount', 'Final Amount', 
+    'Payment Mode', 'Closed At', 'Notes'
   ];
+  ordSheet.getRange(1, 1, 1, ordHeaders.length).setValues([ordHeaders]);
+  ordSheet.setFrozenRows(1);
+
+  // 2. Setup OrderItems Sheet
+  let itmSheet = ss.getSheetByName('OrderItems');
+  if (!itmSheet) itmSheet = ss.insertSheet('OrderItems');
+
+  const itmHeaders = [
+    'Order ID', 'Order Item ID', 'Item ID', 'Item Name', 'Price', 'Qty', 'Item Status'
+  ];
+  itmSheet.getRange(1, 1, 1, itmHeaders.length).setValues([itmHeaders]);
+  itmSheet.setFrozenRows(1);
   
-  const s = SpreadsheetApp.getActive().getSheetByName('Orders');
-  s.getRange(1, 1, 1, headers.length).setValues([headers]);
-  s.setFrozenRows(1);
-  
-  return jsonResponse({ success: true, message: 'Sheet headers fixed' });
+  return jsonResponse({ success: true, message: 'DB Setup Complete (Orders & OrderItems)' });
 }

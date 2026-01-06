@@ -160,7 +160,7 @@ function renderOrder(o) {
       if (!['SERVED', 'HANDED_OVER'].includes(iStatus)) {
         const isReady = iStatus === 'READY';
         const nextState = isReady ? 'PREPARING' : 'READY'; // Allow un-checking
-        actionBtn = `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isReady ? 'checked' : ''} onchange="updateItem('${o['Order ID']}', '${i.itemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#22c55e; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isReady ? 'Ready' : 'Mark Ready'}</span></label>`;
+        actionBtn = `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isReady ? 'checked' : ''} onchange="updateItem('${o['Order ID']}', '${i.orderItemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#22c55e; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isReady ? 'Ready' : 'Mark Ready'}</span></label>`;
       }
     }
 
@@ -172,7 +172,7 @@ function renderOrder(o) {
       if (o['Mode'] === 'Dine-in' && o['Order Status'] === 'PARTIALLY_READY') {
         // Use a checkbox for serving individual items
         const isServed = iStatus === 'SERVED' || iStatus === 'HANDED_OVER';
-        actionBtn += `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isServed ? 'checked disabled' : ''} onchange="updateItem('${o['Order ID']}', '${i.itemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#8b5cf6; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isServed ? 'Served' : 'Serve'}</span></label>`;
+        actionBtn += `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isServed ? 'checked disabled' : ''} onchange="updateItem('${o['Order ID']}', '${i.orderItemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#8b5cf6; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isServed ? 'Served' : 'Serve'}</span></label>`;
       }
     }
 
@@ -291,8 +291,11 @@ function getActions(o) {
   }
 
   if (role === 'manager' && status !== 'CANCELLED') {
-    buttons.push(`<button onclick="cancelOrder('${o['Order ID']}', this)" style="background:#ef4444">Cancel</button>`);
-    buttons.push(`<button onclick="openEditOrder('${o['Order ID']}')" style="background:#f59e0b">Edit</button>`);
+    if (status !== 'CLOSED') {
+      buttons.push(`<button onclick="cancelOrder('${o['Order ID']}', this)" style="background:#ef4444">Cancel</button>`);
+      buttons.push(`<button onclick="openEditOrder('${o['Order ID']}')" style="background:#f59e0b">Edit</button>`);
+      buttons.push(`<button onclick="openAddItems('${o['Order ID']}')" style="background:#22c55e">Add Items</button>`);
+    }
     
     if (['SERVED', 'HANDED_OVER', 'DELIVERED'].includes(status)) {
       buttons.push(`<button onclick="openCloseModal('${o['Order ID']}')" style="background:#22c55e">Close</button>`);
@@ -330,6 +333,23 @@ async function loadOrders() {
         allOrders = []; // Fallback to empty array to prevent crashes
     }
 
+    // DYNAMIC STATUS CHECK (Self-Healing)
+    for (const o of allOrders) {
+      const calculated = calculateDerivedStatus(o.items);
+      const current = o['Order Status'];
+      
+      // If mismatch detected on active orders, trust the items and fix it
+      if (calculated && calculated !== current && !['CLOSED', 'CANCELLED'].includes(current)) {
+        console.log(`[Sync] Auto-correcting ${o['Order ID']}: ${current} -> ${calculated}`);
+        
+        // 1. Update local model immediately so UI renders correctly
+        o['Order Status'] = calculated;
+        
+        // 2. Fire-and-forget update to backend (No queue needed with new DB structure)
+        API.updateOrderStatus(o['Order ID'], calculated, false).catch(e => console.warn(e));
+      }
+    }
+
     if (!activeStatus) {
       activeStatus = ROLE_TABS[role][0];
     }
@@ -359,11 +379,74 @@ window.updateStatus = async function(orderId, nextStatus, btn) {
   }
 };
 
-window.updateItem = async function(orderId, itemId, nextStatus) {
+// Pure helper to calculate status from items
+function calculateDerivedStatus(items) {
+  const foodItems = items.filter(i => i.itemId !== 'DELIVERY_FEE');
+  if (!foodItems.length) return null;
+
+  const statuses = foodItems.map(i => i.status || 'OPEN');
+  
+  const hasPending = statuses.some(s => ['OPEN', 'PREPARING'].includes(s));
+  const hasReady = statuses.some(s => s === 'READY');
+  const hasDone = statuses.some(s => ['SERVED', 'HANDED_OVER', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(s));
+
+  // 1. Mixed: Pending + (Ready or Done) -> PARTIALLY_READY
+  if (hasPending && (hasReady || hasDone)) {
+    return 'PARTIALLY_READY';
+  }
+  // 2. All Pending -> PREPARING (or OPEN if strictly all open)
+  if (hasPending) {
+    const allOpen = statuses.every(s => s === 'OPEN');
+    return allOpen ? 'OPEN' : 'PREPARING';
+  }
+  // 3. Ready + Done (No Pending) -> READY
+  if (hasReady) {
+    return 'READY';
+  }
+  
+  return null;
+}
+
+// Helper to calculate and perform update
+async function determineDerivedStatus(items, orderId = null, currentStatus = null) {
+  const newStatus = calculateDerivedStatus(items);
+
+  // Auto-update if mismatch detected
+  if (newStatus && orderId) {
+    const isFinal = ['CLOSED', 'CANCELLED'].includes(currentStatus);
+    if (!isFinal && newStatus !== currentStatus) {
+      console.log(`Auto-correcting status for ${orderId}: ${currentStatus} -> ${newStatus}`);
+      // Pass cascade: false to prevent overwriting item statuses during auto-correction
+      await API.updateOrderStatus(orderId, newStatus, false);
+      
+      // Update local cache immediately to prevent race conditions
+      const order = allOrders.find(o => o['Order ID'] === orderId);
+      if (order) order['Order Status'] = newStatus;
+    }
+  }
+
+  return newStatus;
+}
+
+window.updateItem = async function(orderId, orderItemId, nextStatus) {
   try {
-    await API.updateItemStatus(orderId, itemId, nextStatus);
-    // The API call now returns immediately. We wait a bit for the server to process, then reload.
-    setTimeout(loadOrders, 750);
+    // 1. Update local cache immediately so subsequent logic sees the new state
+    const order = allOrders.find(o => o['Order ID'] === orderId);
+    if (order) {
+      // Find specific item by unique Order Item ID
+      const item = order.items.find(i => i.orderItemId === orderItemId);
+      if (item) item.status = nextStatus;
+    }
+
+    await API.updateItemStatus(orderId, orderItemId, nextStatus);
+
+    // Auto-update Order Status based on item statuses (Kitchen Flow)
+    if (order) {
+      await determineDerivedStatus(order.items, orderId, order['Order Status']);
+    }
+
+    // Reload to reflect changes
+    setTimeout(loadOrders, 500);
   } catch (err) {
     alert('Failed to update item: ' + err.message);
   }
@@ -381,7 +464,7 @@ window.serveAllReadyItems = async function(orderId, btn) {
     // Create a list of promises for all 'READY' items
     const updatePromises = order.items
       .filter(item => item.status === 'READY')
-      .map(item => API.updateItemStatus(orderId, item.itemId, nextStatus));
+      .map(item => API.updateItemStatus(orderId, item.orderItemId, nextStatus));
 
     await Promise.all(updatePromises);
     setTimeout(loadOrders, 750); // Refresh after all updates are likely done
@@ -406,14 +489,21 @@ window.cancelOrder = async function(orderId, btn) {
 /* -----------------------------
    EDIT ORDER LOGIC
 ----------------------------- */
+let currentEditOrderId = null;
 let editOrderData = null;
+let menuItemsCache = null;
 
-window.openEditOrder = function(orderId) {
+window.openEditOrder = async function(orderId) {
   const order = allOrders.find(o => o['Order ID'] === orderId);
   if (!order) return;
-  
+
+  if (['CLOSED', 'CANCELLED'].includes(order['Order Status'])) {
+    return alert('Closed and Cancelled orders cannot be edited.');
+  }
+
   // Deep copy items to avoid mutating local state before save
   editOrderData = JSON.parse(JSON.stringify(order));
+  currentEditOrderId = orderId;
   document.getElementById('editOrderId').textContent = orderId;
   renderEditItems();
   document.getElementById('editOrderModal').classList.remove('hidden');
@@ -428,12 +518,15 @@ function renderEditItems() {
     return `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #eee">
         <div>
-          <div style="font-weight:600">${item.name}</div>
+          <div style="font-weight:600">
+            ${item.name} 
+            <span style="font-size:0.7em; padding:2px 6px; border-radius:4px; background:#f3f4f6; color:#666; border:1px solid #e5e7eb">${item.status || 'OPEN'}</span>
+          </div>
           <div style="font-size:0.8em; color:#666">₹${item.price} x ${item.qty}</div>
         </div>
         <div style="display:flex; gap:8px">
           <button onclick="changeEditQty(${index}, -1)" style="padding:4px 8px; background:#94a3b8">-</button>
-          <button onclick="changeEditQty(${index}, 1)" style="padding:4px 8px; background:#94a3b8">+</button>
+          <!-- Remove + button to restrict adding items from Edit modal -->
           <button onclick="removeEditItem(${index})" style="padding:4px 8px; background:#ef4444">🗑️</button>
         </div>
       </div>
@@ -461,12 +554,164 @@ window.removeEditItem = function(index) {
 };
 
 window.submitEditOrder = async function() {
+  const btn = document.querySelector('#editOrderModal button[onclick="submitEditOrder()"]');
+  const originalText = btn.textContent;
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
   try {
     await API.editOrder(editOrderData['Order ID'], editOrderData.items);
+
+    // Recalculate status based on the new item list
+    await determineDerivedStatus(editOrderData.items, editOrderData['Order ID'], editOrderData['Order Status']);
+
     document.getElementById('editOrderModal').classList.add('hidden');
-    loadOrders();
+    
+    setTimeout(loadOrders, 500);
   } catch (err) {
     alert('Failed to save order: ' + err.message);
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+};
+
+/* -----------------------------
+   ADD ITEMS LOGIC
+----------------------------- */
+let newItemsToAdd = [];
+let currentAddOrderId = null;
+
+window.openAddItems = async function(orderId) {
+  const order = allOrders.find(o => o['Order ID'] === orderId);
+  if (!order) return;
+
+  if (['CLOSED', 'CANCELLED'].includes(order['Order Status'])) {
+    return alert('Closed and Cancelled orders cannot be modified.');
+  }
+
+  currentAddOrderId = orderId;
+  newItemsToAdd = []; // Reset list
+  document.getElementById('addItemsOrderId').textContent = orderId;
+  renderAddItems();
+  document.getElementById('addItemsModal').classList.remove('hidden');
+
+  // Load menu if needed
+  if (!menuItemsCache) {
+    try {
+      menuItemsCache = await API.getMenu();
+    } catch (e) {
+      alert('Failed to load menu for adding items');
+      return;
+    }
+  }
+  populateAddItemsSelect();
+};
+
+function populateAddItemsSelect() {
+  const datalist = document.getElementById('addItemsDatalist');
+  if (!datalist || !menuItemsCache) return;
+
+  const sorted = [...menuItemsCache].sort((a, b) => a.name.localeCompare(b.name));
+  datalist.innerHTML = sorted.map(i => `<option value="${i.name}">₹${i.price}</option>`).join('');
+}
+
+window.addItemToAddList = function() {
+  const input = document.getElementById('addItemsInput');
+  const val = input.value;
+  if (!val) return;
+
+  const item = menuItemsCache.find(i => i.name === val);
+  if (!item) {
+    return alert('Please select a valid item from the list');
+  }
+
+  // Always create a new line item for "Add" flow
+  const order = allOrders.find(o => o['Order ID'] === currentAddOrderId);
+  const newItemStatus = (order && order['Order Status'] === 'OPEN') ? 'OPEN' : 'PREPARING';
+
+  // Check if already in the *new* list to merge qty there
+  const existing = newItemsToAdd.find(i => i.itemId === item.itemId);
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    newItemsToAdd.push({
+      itemId: item.itemId,
+      name: item.name,
+      price: item.price,
+      qty: 1,
+      status: newItemStatus
+    });
+  }
+  renderAddItems();
+  input.value = '';
+};
+
+function renderAddItems() {
+  const container = document.getElementById('addItemsList');
+  if (newItemsToAdd.length === 0) {
+    container.innerHTML = '<div style="color:#999; text-align:center; padding:10px">No items added yet</div>';
+    return;
+  }
+  container.innerHTML = newItemsToAdd.map((item, index) => {
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #eee">
+        <div style="flex:1">
+          <div style="font-weight:600">${item.name}</div>
+          <div style="font-size:0.8em; color:#666">₹${item.price}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px">
+          <button onclick="updateAddQty(${index}, ${item.qty - 1})" style="padding:6px 10px; background:#e5e7eb; border:none; border-radius:4px; cursor:pointer; font-weight:bold">-</button>
+          <input type="number" value="${item.qty}" min="1" onchange="updateAddQty(${index}, this.value)" style="width:50px; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center">
+          <button onclick="updateAddQty(${index}, ${item.qty + 1})" style="padding:6px 10px; background:#e5e7eb; border:none; border-radius:4px; cursor:pointer; font-weight:bold">+</button>
+          <button onclick="removeAddItem(${index})" style="padding:6px 10px; background:#ef4444; color:white; border:none; border-radius:4px; margin-left:4px">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.updateAddQty = function(index, val) {
+  let qty = parseInt(val);
+  if (isNaN(qty) || qty < 1) qty = 1;
+  newItemsToAdd[index].qty = qty;
+  renderAddItems();
+};
+
+window.removeAddItem = function(index) {
+  newItemsToAdd.splice(index, 1);
+  renderAddItems();
+};
+
+window.submitAddItems = async function() {
+  if (newItemsToAdd.length === 0) return;
+  
+  const order = allOrders.find(o => o['Order ID'] === currentAddOrderId);
+  if (!order) return;
+
+  // Merge existing items + new items
+  // This preserves existing items exactly as they are (status, qty) and appends new ones
+  const finalItems = [...order.items, ...newItemsToAdd];
+
+  const btn = document.querySelector('#addItemsModal button[onclick="submitAddItems()"]');
+  const originalText = btn.textContent;
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    await API.editOrder(currentAddOrderId, finalItems);
+
+    // Recalculate status based on the new item list
+    await determineDerivedStatus(finalItems, currentAddOrderId, order['Order Status']);
+
+    document.getElementById('addItemsModal').classList.add('hidden');
+    
+    setTimeout(loadOrders, 500);
+  } catch (err) {
+    alert('Failed to save order: ' + err.message);
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
   }
 };
 

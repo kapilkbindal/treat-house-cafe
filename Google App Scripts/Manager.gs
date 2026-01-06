@@ -23,28 +23,40 @@ function cancelOrder({ orderId, reason }) {
     'Order Status': 'CANCELLED',
     'Notes': reason || ''
   });
+
+  // Cascade CANCELLED status to items
+  const sheet = SpreadsheetApp.getActive().getSheetByName('OrderItems');
+  const data = sheet.getDataRange().getValues();
+  const ranges = [];
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(orderId).trim()) {
+      ranges.push(`G${i + 1}`); // Status is now Column G
+    }
+  }
+  if (ranges.length > 0) {
+    sheet.getRangeList(ranges).setValue('CANCELLED');
+  }
+
   return jsonResponse(result);
 }
 
 function editOrder(payload) {
   // payload: { orderId, items: [...] }
-  // SECURITY: Recalculate total on the server using master price list to prevent tampering.
-  const menu = getMenu(); // Fetch master price list
-  let serverSubtotal = 0;
+  const ss = SpreadsheetApp.getActive();
+  const ordSheet = ss.getSheetByName('Orders');
+  const itmSheet = ss.getSheetByName('OrderItems');
 
-  const validatedItems = payload.items.map(clientItem => {
-    const menuItem = menu.find(m => m.itemId === clientItem.itemId);
-    if (!menuItem) throw new Error(`Invalid item ID in payload: ${clientItem.itemId}`);
-    
-    // Use server price, not client price
-    serverSubtotal += menuItem.price * clientItem.qty;
+  if (!ordSheet || !itmSheet) {
+    return jsonResponse({ success: false, message: 'Database sheets missing' });
+  }
 
-    return { ...clientItem, price: menuItem.price }; // Return item with correct price
-  });
+  // 1. Calculate New Total
+  let newTotal = 0;
+  payload.items.forEach(i => newTotal += (i.price * i.qty));
 
+  // 2. Update Total in Orders Sheet
   const result = updateOrderById(payload.orderId, {
-    'Items JSON': JSON.stringify(validatedItems),
-    'Total': serverSubtotal,
+    'Total': newTotal,
     // Reset final amount logic or keep it simple? 
     // If we change items, the previous Final Amount is invalid.
     // Let's clear payment fields to force re-closing
@@ -52,6 +64,25 @@ function editOrder(payload) {
     'Final Amount': '',
     'Discount Amount': ''
   });
+
+  // 3. Replace Items in OrderItems Sheet
+  // Strategy: Delete old rows for this order, append new ones.
+  const itmValues = itmSheet.getDataRange().getValues();
+  for (let i = itmValues.length - 1; i >= 1; i--) {
+    if (String(itmValues[i][0]) === String(payload.orderId)) {
+      itmSheet.deleteRow(i + 1);
+    }
+  }
+
+  const itemRows = payload.items.map((item, index) => [
+    payload.orderId, 
+    `${payload.orderId}-${String(index + 1).padStart(3, '0')}`, // Generate new Order Item IDs
+    item.itemId, item.name, item.price, item.qty, item.status || 'OPEN'
+  ]);
+
+  if (itemRows.length > 0) {
+    itmSheet.getRange(itmSheet.getLastRow() + 1, 1, itemRows.length, 7).setValues(itemRows);
+  }
 
   return jsonResponse(result);
 }

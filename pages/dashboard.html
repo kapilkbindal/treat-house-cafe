@@ -298,6 +298,25 @@
   </div>
 </div>
 
+<!-- ADD ITEMS MODAL -->
+<div id="addItemsModal" class="modal hidden">
+  <div class="modal-content" style="max-width: 500px;">
+    <h3>Add Items <span id="addItemsOrderId" style="font-weight:400; color:#666; font-size:0.8em"></span></h3>
+    <div style="display:flex; gap:8px; margin-bottom:12px">
+      <input type="text" id="addItemsInput" list="addItemsDatalist" placeholder="Type to search item..." style="margin:0; flex:1; padding:10px; border:1px solid #ccc; border-radius:6px">
+      <datalist id="addItemsDatalist"></datalist>
+      <button onclick="addItemToAddList()" style="background:#22c55e; color:white; margin:0">Add</button>
+    </div>
+    <div id="addItemsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
+      <!-- New Items injected here -->
+    </div>
+    <div class="actions" style="justify-content: flex-end;">
+      <button onclick="document.getElementById('addItemsModal').classList.add('hidden')" style="background:#94a3b8; color:white">Cancel</button>
+      <button onclick="submitAddItems()" style="background:#22c55e; color:white">Confirm Add</button>
+    </div>
+  </div>
+</div>
+
 <!-- CHANGE PASSWORD MODAL -->
 <div id="passwordModal" class="modal hidden">
   <div class="modal-content">

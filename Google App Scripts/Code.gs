@@ -23,8 +23,8 @@ function doGet(e) {
         authenticate(e.parameter.token, ['admin']);
         return jsonResponse(getUsers());
 
-      // case 'setup': // 🔒 Comment out after use for security
-      //   return setupSheet();
+      case 'setup': // ✅ Run once to create Sheets
+        return setupSheet();
 
       // case 'setupUsers': // 🔒 Comment out after use for security
       //   return setupUsersSheet();
@@ -69,8 +69,8 @@ function doPost(e) {
       case 'updateItemStatus': {
         // Granular item updates
         const user = authenticate(payload.token, ['kitchen', 'waiter', 'manager']);
-        logAction(user.username, 'UPDATE_ITEM', `${payload.orderId} [${payload.itemId}] -> ${payload.nextStatus}`);
-        return updateOrderItemStatus(payload.orderId, payload.itemId, payload.nextStatus);
+        logAction(user.username, 'UPDATE_ITEM', `${payload.orderId} [${payload.orderItemId}] -> ${payload.nextStatus}`);
+        return updateOrderItemStatus(payload.orderId, payload.orderItemId, payload.nextStatus);
       }
 
       case 'closeOrder': {
@@ -136,8 +136,8 @@ function routeStatusUpdate(payload) {
   const s = payload.nextStatus;
   
   // All these can now be handled by a single function
-  const allowedStatuses = ['PREPARING', 'READY', 'SERVED', 'HANDED_OVER', 'OUT_FOR_DELIVERY', 'DELIVERED'];
-  if (allowedStatuses.includes(s)) return updateOrderStatus(payload.orderId, s);
+  const allowedStatuses = ['OPEN', 'PREPARING', 'PARTIALLY_READY', 'READY', 'SERVED', 'HANDED_OVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CLOSED', 'CANCELLED'];
+  if (allowedStatuses.includes(s)) return updateOrderStatus(payload.orderId, s, payload.cascade);
   
   return jsonResponse({ success: false, message: 'Unknown status transition: ' + s });
 }
