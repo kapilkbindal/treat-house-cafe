@@ -144,7 +144,12 @@ function renderOrder(o) {
     if (iStatus === 'SERVED') statusColor = '#8b5cf6';
 
     // Only show status badge if it's NOT Open/Preparing AND statuses are mixed
-    if (!['OPEN', 'PREPARING'].includes(iStatus) && !allSameStatus) {
+    const isDineIn = o['Mode'] === 'Dine-in';
+    const orderStatus = o['Order Status'];
+    const showForDineIn = isDineIn && ['PARTIALLY_READY', 'READY'].includes(orderStatus);
+    const showForOthers = !isDineIn && orderStatus === 'PARTIALLY_READY';
+
+    if (!['OPEN', 'PREPARING'].includes(iStatus) && !allSameStatus && (showForDineIn || showForOthers)) {
       statusBadge = `<span class="item-status" style="background:${statusColor}">${iStatus}</span>`;
     }
 
@@ -163,8 +168,8 @@ function renderOrder(o) {
       const isTakeaway = o['Mode'] === 'Takeaway';
       const nextState = isTakeaway ? 'HANDED_OVER' : 'SERVED';
 
-      // Dine-in: Allow partial serving (checkboxes). Takeaway: No item-level actions.
-      if (!isTakeaway) {
+      // Dine-in: Allow partial serving (checkboxes) only when PARTIALLY_READY.
+      if (o['Mode'] === 'Dine-in' && o['Order Status'] === 'PARTIALLY_READY') {
         // Use a checkbox for serving individual items
         const isServed = iStatus === 'SERVED' || iStatus === 'HANDED_OVER';
         actionBtn += `<label style="display:inline-flex; align-items:center; cursor:pointer; margin-left:8px; vertical-align:middle"><input type="checkbox" ${isServed ? 'checked disabled' : ''} onchange="updateItem('${o['Order ID']}', '${i.itemId}', '${nextState}')" style="width:18px; height:18px; accent-color:#8b5cf6; cursor:pointer; margin:0;"><span style="margin-left:4px; font-size:0.8em; color:#888; font-weight:normal">${isServed ? 'Served' : 'Serve'}</span></label>`;
@@ -270,27 +275,30 @@ function getActions(o) {
       // For waiters, show the special "Serve All" or "Hand Over" button
       if (role === 'waiter' && o['Mode'] !== 'Delivery') {
         const btnLabel = o['Mode'] === 'Takeaway' ? 'Hand Over' : 'Serve All';
-        buttons.push(`<button onclick="serveAllReadyItems('${o['Order ID']}')" style="background:#8b5cf6">${btnLabel}</button>`);
+        buttons.push(`<button onclick="serveAllReadyItems('${o['Order ID']}', this)" style="background:#8b5cf6">${btnLabel}</button>`);
       } else {
         // For other roles (Manager, Delivery), use the standard flow
         nextStates.forEach(next =>
-          buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}')">${next}</button>`)
+          buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}', this)">${next}</button>`)
         );
       }
     } else {
       // For all other statuses (OPEN, PREPARING, etc.)
       nextStates.forEach(next =>
-        buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}')">${next}</button>`)
+        buttons.push(`<button onclick="updateStatus('${o['Order ID']}', '${next}', this)">${next}</button>`)
       );
     }
   }
 
   if (role === 'manager' && status !== 'CANCELLED') {
-    buttons.push(`<button onclick="cancelOrder('${o['Order ID']}')" style="background:#ef4444">Cancel</button>`);
+    buttons.push(`<button onclick="cancelOrder('${o['Order ID']}', this)" style="background:#ef4444">Cancel</button>`);
     buttons.push(`<button onclick="openEditOrder('${o['Order ID']}')" style="background:#f59e0b">Edit</button>`);
     
     if (['SERVED', 'HANDED_OVER', 'DELIVERED'].includes(status)) {
       buttons.push(`<button onclick="openCloseModal('${o['Order ID']}')" style="background:#22c55e">Close</button>`);
+    }
+    if (status === 'CLOSED') {
+      buttons.push(`<button onclick="printReceipt('${o['Order ID']}')" style="background:#64748b; color:white">🖨️ Print</button>`);
     }
   }
 
@@ -333,7 +341,8 @@ async function loadOrders() {
   }
 }
 
-window.updateStatus = async function(orderId, nextStatus) {
+window.updateStatus = async function(orderId, nextStatus, btn) {
+  if (btn) btn.classList.add('loading');
   try {
     console.log('Sending Update:', { orderId, nextStatus });
     const res = await API.updateOrderStatus(orderId, nextStatus);
@@ -346,6 +355,7 @@ window.updateStatus = async function(orderId, nextStatus) {
     loadOrders();
   } catch (err) {
     alert('Failed to update status: ' + err.message);
+    if (btn) btn.classList.remove('loading');
   }
 };
 
@@ -359,25 +369,38 @@ window.updateItem = async function(orderId, itemId, nextStatus) {
   }
 };
 
-window.serveAllReadyItems = async function(orderId) {
+window.serveAllReadyItems = async function(orderId, btn) {
   const order = allOrders.find(o => o['Order ID'] === orderId);
   if (!order) return;
 
-  const nextStatus = order['Mode'] === 'Takeaway' ? 'HANDED_OVER' : 'SERVED';
+  if (btn) btn.classList.add('loading');
 
-  // Create a list of promises for all 'READY' items
-  const updatePromises = order.items
-    .filter(item => item.status === 'READY')
-    .map(item => API.updateItemStatus(orderId, item.itemId, nextStatus));
+  try {
+    const nextStatus = order['Mode'] === 'Takeaway' ? 'HANDED_OVER' : 'SERVED';
 
-  await Promise.all(updatePromises);
-  setTimeout(loadOrders, 750); // Refresh after all updates are likely done
+    // Create a list of promises for all 'READY' items
+    const updatePromises = order.items
+      .filter(item => item.status === 'READY')
+      .map(item => API.updateItemStatus(orderId, item.itemId, nextStatus));
+
+    await Promise.all(updatePromises);
+    setTimeout(loadOrders, 750); // Refresh after all updates are likely done
+  } catch (err) {
+    alert('Failed to serve items: ' + err.message);
+    if (btn) btn.classList.remove('loading');
+  }
 };
 
-window.cancelOrder = async function(orderId) {
+window.cancelOrder = async function(orderId, btn) {
   if (!confirm('Cancel this order?')) return;
-  await API.cancelOrder(orderId);
-  loadOrders();
+  if (btn) btn.classList.add('loading');
+  try {
+    await API.cancelOrder(orderId);
+    loadOrders();
+  } catch (err) {
+    alert('Failed to cancel: ' + err.message);
+    if (btn) btn.classList.remove('loading');
+  }
 };
 
 /* -----------------------------
@@ -495,7 +518,7 @@ function calculateModal() {
   document.getElementById('modalFinal').textContent = '₹' + final;
 }
 
-window.submitCloseOrder = async function() {
+window.submitCloseOrder = async function(shouldPrint = false) {
   if (!currentCloseOrderId) return;
 
   const discountPercent = Number(document.getElementById('discPercent').value) || 0;
@@ -503,7 +526,7 @@ window.submitCloseOrder = async function() {
   const paymentMode = document.getElementById('payMode').value;
 
   // UI Feedback
-  const btn = document.querySelector('#closeModal button[onclick="submitCloseOrder()"]');
+  const btn = document.querySelector(`#closeModal button[onclick="submitCloseOrder(${shouldPrint})"]`);
   const oldText = btn.textContent;
   btn.textContent = 'Processing...';
   btn.disabled = true;
@@ -516,6 +539,14 @@ window.submitCloseOrder = async function() {
       discountAmount,
       paymentMode
     });
+
+    if (shouldPrint) {
+      const finalAmount = Math.max(currentSubtotal - discountAmount, 0);
+      printReceipt(currentCloseOrderId, {
+        discount: discountAmount,
+        total: finalAmount
+      });
+    }
     hideCloseModal();
     loadOrders();
   } catch (err) {
@@ -524,6 +555,75 @@ window.submitCloseOrder = async function() {
     btn.textContent = oldText;
     btn.disabled = false;
   }
+};
+
+window.printReceipt = function(orderId, tempDetails = null) {
+  const order = allOrders.find(o => o['Order ID'] === orderId);
+  if (!order) return;
+
+  const items = order.items;
+  let subtotal = 0;
+  items.forEach(i => {
+    if (i.itemId !== 'DELIVERY_FEE') subtotal += i.price * i.qty;
+  });
+  
+  const deliveryItem = items.find(i => i.itemId === 'DELIVERY_FEE');
+  const deliveryFee = deliveryItem ? (deliveryItem.price * deliveryItem.qty) : 0;
+
+  let discount = 0;
+  let finalTotal = order['Total'];
+
+  if (tempDetails) {
+    discount = tempDetails.discount;
+    finalTotal = tempDetails.total;
+  } else {
+    // Infer discount for already closed orders
+    const calcTotal = subtotal + deliveryFee;
+    if (order['Total'] < calcTotal) {
+      discount = calcTotal - order['Total'];
+    }
+  }
+
+  const w = window.open('', '', 'width=300,height=600');
+  w.document.write(`
+    <html>
+    <head>
+      <style>
+        body { font-family: monospace; padding: 10px; width: 280px; font-size: 12px; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 2px 0; }
+        .border-top { border-top: 1px dashed #000; }
+        .border-bottom { border-bottom: 1px dashed #000; }
+        .bold { font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="text-center bold" style="font-size:1.2em">TREAT HOUSE CAFE</div>
+      <div class="text-center">Jaipur, Rajasthan</div>
+      <div class="text-center">Ph: +91 8306963232</div>
+      <br>
+      <div>Order: ${orderId}</div>
+      <div>Date: ${new Date().toLocaleString()}</div>
+      <div class="border-bottom"></div>
+      <table>
+        ${items.map(i => `<tr><td>${i.name} x${i.qty}</td><td class="text-right">${i.price * i.qty}</td></tr>`).join('')}
+      </table>
+      <div class="border-top" style="margin-top:5px"></div>
+      <table>
+        <tr><td>Subtotal</td><td class="text-right">${subtotal}</td></tr>
+        ${deliveryFee > 0 ? `<tr><td>Delivery</td><td class="text-right">${deliveryFee}</td></tr>` : ''}
+        ${discount > 0 ? `<tr><td>Discount</td><td class="text-right">-${discount}</td></tr>` : ''}
+        <tr class="bold" style="font-size:1.1em"><td>Total</td><td class="text-right">${finalTotal}</td></tr>
+      </table>
+      <br><div class="text-center">Thank You! Visit Again</div>
+    </body>
+    </html>
+  `);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); w.close(); }, 500);
 };
 
 /* -----------------------------
