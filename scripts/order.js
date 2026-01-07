@@ -174,10 +174,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* LOAD MENU */
   async function loadMenu() {
     menuContainer.innerHTML = '';
-    const items = await API.getMenu();
+    let items;
+    
+    try {
+      items = await API.getMenu();
+    } catch (e) {
+      console.error('Menu load error:', e);
+      menuContainer.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">Failed to connect to menu server</div>';
+      return;
+    }
+
+    if (!Array.isArray(items)) {
+      console.error('Invalid menu response:', items);
+      menuContainer.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">Failed to load menu data</div>';
+      return;
+    }
+    
+    console.log('Menu items loaded:', items);
 
     const categories = {};
     items.forEach(item => {
+      if (!item.name || !item.name.trim()) return; // Skip items with no name
       if (!categories[item.category]) {
         categories[item.category] = {
           order: item.categoryOrder,
@@ -450,7 +467,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Fetch existing order details
       try {
-        const orders = await API.getOrders();
+        let orders = await API.getOrders();
+        if (!Array.isArray(orders)) orders = [];
         const order = orders.find(o => o['Order ID'] === orderIdParam);
         
         if (order) {
@@ -507,6 +525,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // Force load menu since we have the location now
           await loadMenu();
+        } else {
+          console.error('Order not found:', orderIdParam);
+          alert('Order not found');
         }
       } catch (e) {
         console.error('Failed to load order details', e);

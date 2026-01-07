@@ -43,11 +43,40 @@ const API = {
      MENU & LOCATIONS
   ----------------------------- */
   async getMenu() {
-    return safeFetch(`${BASE_URL}?action=menu`);
+    return safeFetch(`${BASE_URL}?action=menu&_t=${Date.now()}`);
   },
 
   async getLocations() {
     return safeFetch(`${BASE_URL}?action=locations`);
+  },
+
+  async getManagerMenu() {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=getManagerMenu&token=${encodeURIComponent(token)}`);
+  },
+
+  async updateMenuItem(payload) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=updateMenuItem`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'updateMenuItem',
+        token,
+        ...payload
+      })
+    });
+  },
+
+  async batchUpdateMenuItems(updates) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=batchUpdateMenuItems`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'batchUpdateMenuItems',
+        token,
+        updates
+      })
+    });
   },
 
   /* -----------------------------

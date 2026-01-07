@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Menu Manager | Treat House Cafe</title>
+  <link rel="manifest" href="../manifest.json">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f8f4e9; margin: 0; padding: 20px; color: #333; }
+    .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    h1 { margin: 0; font-size: 1.5em; }
+    button { cursor: pointer; padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; }
+    .btn-back { background: #64748b; color: white; }
+    .btn-save { background: #22c55e; color: white; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; font-weight: 600; color: #475569; }
+    
+    input[type="number"] { width: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #22c55e; }
+    
+    .category-row { background: #e2e8f0; font-weight: bold; color: #334155; }
+    .category-row td { padding-top: 15px; padding-bottom: 15px; }
+    .arrow-btn { background: none; border: 1px solid #cbd5e1; color: #334155; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px; }
+    .arrow-btn:hover { background: #cbd5e1; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    
+    /* Toast */
+    #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 17px; }
+    #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+    @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+    @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Menu Manager</h1>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </header>
+
+  <div id="menuContent">
+    <div class="loading">Loading menu items...</div>
+  </div>
+</div>
+
+<div id="toast">Saved!</div>
+
+<script src="../scripts/api.js"></script>
+<script>
+  let menuItems = [];
+
+  async function init() {
+    const user = JSON.parse(sessionStorage.getItem('thc_user'));
+    if (!user || user.role !== 'manager') {
+      window.location.href = 'dashboard.html';
+      return;
+    }
+
+    try {
+      const res = await API.getManagerMenu();
+      if (Array.isArray(res)) {
+        menuItems = res;
+        renderMenu();
+      } else {
+        document.getElementById('menuContent').innerHTML = '<div class="loading">Failed to load menu</div>';
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function renderMenu() {
+    // Group by Category
+    const categories = {};
+    menuItems.forEach(item => {
+      if (!categories[item.category]) {
+        categories[item.category] = {
+          name: item.category,
+          order: item.categoryOrder,
+          items: []
+        };
+      }
+      categories[item.category].items.push(item);
+    });
+
+    const sortedCats = Object.values(categories).sort((a, b) => a.order - b.order);
+
+    let html = '<table><thead><tr><th>Item Name</th><th>Price (₹)</th><th>Active</th><th>Sequence</th><th>Action</th></tr></thead><tbody>';
+    
+    sortedCats.forEach((cat, catIndex) => {
+      // Category Header Row
+      html += `
+        <tr class="category-row">
+          <td colspan="3">${cat.name}</td>
+          <td>
+            <button class="arrow-btn" onclick="moveCategory('${cat.name}', -1)">▲</button>
+            <button class="arrow-btn" onclick="moveCategory('${cat.name}', 1)">▼</button>
+            <span style="font-size:0.8em; color:#666; margin-left:5px">(${cat.order})</span>
+          </td>
+          <td></td>
+        </tr>`;
+
+      cat.items.sort((a, b) => a.itemOrder - b.itemOrder).forEach((item, itemIndex) => {
+        html += `
+          <tr>
+            <td style="padding-left: 20px;">${item.name}</td>
+            <td><input type="number" id="price-${item.itemId}" value="${item.price}"></td>
+            <td><input type="checkbox" id="active-${item.itemId}" ${item.active ? 'checked' : ''}></td>
+            <td>
+              <button class="arrow-btn" onclick="moveItem('${item.itemId}', -1)">▲</button>
+              <button class="arrow-btn" onclick="moveItem('${item.itemId}', 1)">▼</button>
+              <span style="font-size:0.8em; color:#999; margin-left:5px">${item.itemOrder}</span>
+            </td>
+            <td><button class="btn-save" onclick="saveItem('${item.itemId}')">Save</button></td>
+          </tr>
+        `;
+      });
+    });
+    html += '</tbody></table>';
+    document.getElementById('menuContent').innerHTML = html;
+  }
+
+  window.moveCategory = async function(catName, direction) {
+    // 1. Identify unique categories and their current orders
+    const cats = [];
+    const seen = new Set();
+    menuItems.forEach(i => {
+      if (!seen.has(i.category)) {
+        cats.push({ name: i.category, order: i.categoryOrder });
+        seen.add(i.category);
+      }
+    });
+    cats.sort((a, b) => a.order - b.order);
+
+    const idx = cats.findIndex(c => c.name === catName);
+    if (idx === -1) return;
+    if (direction === -1 && idx === 0) return; // Already top
+    if (direction === 1 && idx === cats.length - 1) return; // Already bottom
+
+    const currentCat = cats[idx];
+    const swapCat = cats[idx + direction];
+
+    // Swap orders
+    const temp = currentCat.order;
+    currentCat.order = swapCat.order;
+    swapCat.order = temp;
+
+    // Prepare updates for ALL items in both categories
+    const updates = [];
+    menuItems.forEach(i => {
+      if (i.category === currentCat.name) {
+        i.categoryOrder = currentCat.order; // Update local
+        updates.push({ itemId: i.itemId, categoryOrder: currentCat.order });
+      } else if (i.category === swapCat.name) {
+        i.categoryOrder = swapCat.order; // Update local
+        updates.push({ itemId: i.itemId, categoryOrder: swapCat.order });
+      }
+    });
+
+    renderMenu(); // Optimistic UI update
+    try {
+      await API.batchUpdateMenuItems(updates);
+      showToast();
+    } catch (e) {
+      alert('Failed to update category sequence: ' + e.message);
+      init(); // Revert changes
+    }
+  };
+
+  window.moveItem = async function(itemId, direction) {
+    const item = menuItems.find(i => i.itemId === itemId);
+    if (!item) return;
+
+    // Get items in same category
+    const siblings = menuItems.filter(i => i.category === item.category)
+                              .sort((a, b) => a.itemOrder - b.itemOrder);
+    
+    const idx = siblings.findIndex(i => i.itemId === itemId);
+    if (idx === -1) return;
+    if (direction === -1 && idx === 0) return;
+    if (direction === 1 && idx === siblings.length - 1) return;
+
+    const swapItem = siblings[idx + direction];
+
+    // Swap orders
+    const temp = item.itemOrder;
+    item.itemOrder = swapItem.itemOrder;
+    swapItem.itemOrder = temp;
+
+    // Prepare updates
+    const updates = [
+      { itemId: item.itemId, itemOrder: item.itemOrder },
+      { itemId: swapItem.itemId, itemOrder: swapItem.itemOrder }
+    ];
+
+    renderMenu(); // Optimistic UI update
+    try {
+      await API.batchUpdateMenuItems(updates);
+      showToast();
+    } catch (e) {
+      alert('Failed to update item sequence: ' + e.message);
+      init(); // Revert changes
+    }
+  };
+
+  window.saveItem = async function(itemId) {
+    const price = Number(document.getElementById(`price-${itemId}`).value);
+    const active = document.getElementById(`active-${itemId}`).checked;
+
+    const btn = document.querySelector(`button[onclick="saveItem('${itemId}')"]`);
+    const originalText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    try {
+      const res = await API.updateMenuItem({ itemId, price, active });
+      if (res.success) {
+        showToast();
+      } else {
+        alert('Failed: ' + res.message);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  };
+
+  function showToast() {
+    const x = document.getElementById("toast");
+    x.className = "show";
+    setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+  }
+
+  init();
+</script>
+</body>
+</html>

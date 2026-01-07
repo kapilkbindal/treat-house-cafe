@@ -23,6 +23,10 @@ function doGet(e) {
         authenticate(e.parameter.token, ['admin']);
         return jsonResponse(getUsers());
 
+      case 'getManagerMenu':
+        authenticate(e.parameter.token, ['manager']);
+        return jsonResponse(getManagerMenu());
+
       case 'setup': // ✅ Run once to create Sheets
         return setupSheet();
 
@@ -117,6 +121,18 @@ function doPost(e) {
         authenticate(payload.token, ['admin']);
         updateUser(payload);
         return jsonResponse({ success: true });
+
+      case 'updateMenuItem': {
+        const user = authenticate(payload.token, ['manager']);
+        logAction(user.username, 'UPDATE_MENU', `Item: ${payload.itemId}`);
+        return jsonResponse(updateMenuItem(payload));
+      }
+
+      case 'batchUpdateMenuItems': {
+        const user = authenticate(payload.token, ['manager']);
+        logAction(user.username, 'BATCH_UPDATE_MENU', `Count: ${payload.updates.length}`);
+        return jsonResponse(batchUpdateMenuItems(payload.updates));
+      }
 
       default:
         return jsonResponse({

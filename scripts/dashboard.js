@@ -760,6 +760,7 @@ function checkAuth() {
   document.getElementById('roleInfo').innerHTML = `
     ${currentUser.name} (${role.toUpperCase()}) 
     <button onclick="window.location.href='order.html?mode=staff'" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer">New Order</button>
+    ${role === 'manager' ? `<button onclick="window.location.href='menu-manager.html'" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer">Menu</button>` : ''}
     <button onclick="document.getElementById('passwordModal').classList.remove('hidden')" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer">Password</button>
     <button onclick="logout()" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer">Logout</button>
   `;
