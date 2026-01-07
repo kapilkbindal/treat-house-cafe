@@ -134,6 +134,18 @@ function doPost(e) {
         return jsonResponse(batchUpdateMenuItems(payload.updates));
       }
 
+      case 'updateMenuCategory': {
+        const user = authenticate(payload.token, ['manager']);
+        logAction(user.username, 'UPDATE_CATEGORY_STATUS', `${payload.categoryName} -> ${payload.isActive}`);
+        return jsonResponse(updateMenuCategory(payload));
+      }
+
+      case 'addMenuItem': {
+        const user = authenticate(payload.token, ['manager']);
+        logAction(user.username, 'ADD_MENU_ITEM', `Item: ${payload.name}`);
+        return jsonResponse(addMenuItem(payload));
+      }
+
       default:
         return jsonResponse({
           success: false,

@@ -79,6 +79,31 @@ const API = {
     });
   },
 
+  async updateMenuCategory(categoryName, isActive) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=updateMenuCategory`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'updateMenuCategory',
+        token,
+        categoryName,
+        isActive
+      })
+    });
+  },
+
+  async addMenuItem(item) {
+    const token = getAuthToken();
+    return safeFetch(`${BASE_URL}?action=addMenuItem`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'addMenuItem',
+        token,
+        ...item
+      })
+    });
+  },
+
   /* -----------------------------
      ORDERS (UNIFIED – REQUIRED)
   ----------------------------- */

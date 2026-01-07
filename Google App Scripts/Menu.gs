@@ -13,7 +13,8 @@ function getMenu() {
   rows.shift(); // headers
 
   const menu = rows
-    .filter(r => r[5] === 'Yes' && r[3] && String(r[3]).trim() !== '') // Available AND Name exists
+    .filter(r => r[5] === 'Yes' && r[3] && String(r[3]).trim() !== '') // Item Active AND Name exists
+    .filter(r => r[7] !== 'No') // Category Active (Col H). Default to Yes if empty.
     .map(r => ({
       itemId: r[0],
       category: r[1],
@@ -48,7 +49,8 @@ function getManagerMenu() {
     name: r[3],
     price: Number(r[4]),
     active: r[5] === 'Yes',
-    itemOrder: Number(r[6])
+    itemOrder: Number(r[6]),
+    categoryActive: r[7] !== 'No' // Read Category Status (Col H)
   })).sort((a, b) => a.categoryOrder - b.categoryOrder || a.itemOrder - b.itemOrder);
 }
 
@@ -90,6 +92,88 @@ function batchUpdateMenuItems(updates) {
     }
   });
   
+  CacheService.getScriptCache().remove('MENU_JSON_V3');
+  return { success: true };
+}
+
+function updateMenuCategory(payload) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Menu');
+  if (!sheet) return { success: false, message: 'Menu sheet not found' };
+
+  const data = sheet.getDataRange().getValues();
+  const categoryName = String(payload.categoryName).trim();
+  const status = payload.isActive ? 'Yes' : 'No';
+  const ranges = [];
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][1]).trim() === categoryName) {
+      // Update Col H (Index 8 in 1-based notation)
+      ranges.push(`H${i + 1}`);
+    }
+  }
+
+  if (ranges.length > 0) sheet.getRangeList(ranges).setValue(status);
+  
+  CacheService.getScriptCache().remove('MENU_JSON_V3');
+  return { success: true };
+}
+
+function addMenuItem(payload) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Menu');
+  if (!sheet) return { success: false, message: 'Menu sheet not found' };
+
+  const data = sheet.getDataRange().getValues();
+  const name = String(payload.name).trim();
+  const category = String(payload.category).trim();
+  const price = Number(payload.price);
+
+  // Check duplicate name (case-insensitive)
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][3]).toLowerCase() === name.toLowerCase()) {
+      return { success: false, message: 'Item already exists' };
+    }
+  }
+
+  // Calculate Orders
+  let categoryOrder = 0;
+  let maxItemOrderInCat = 0;
+  let maxGlobalCatOrder = 0;
+  let categoryExists = false;
+  let maxId = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const rCat = String(data[i][1]);
+    const rCatOrder = Number(data[i][2]) || 0;
+    const rItemOrder = Number(data[i][6]) || 0;
+    const rId = String(data[i][0]);
+
+    if (rCatOrder > maxGlobalCatOrder) maxGlobalCatOrder = rCatOrder;
+
+    if (rCat.toLowerCase() === category.toLowerCase()) {
+      categoryExists = true;
+      categoryOrder = rCatOrder;
+      if (rItemOrder > maxItemOrderInCat) maxItemOrderInCat = rItemOrder;
+    }
+
+    if (rId.startsWith('M')) {
+      const num = parseInt(rId.substring(1), 10);
+      if (!isNaN(num) && num > maxId) {
+        maxId = num;
+      }
+    }
+  }
+
+  if (!categoryExists) {
+    categoryOrder = maxGlobalCatOrder + 1;
+    maxItemOrderInCat = 0;
+  }
+
+  const itemOrder = maxItemOrderInCat + 1;
+  const itemId = 'M' + (maxId + 1);
+
+  // Append Row: ItemId, Category, CatOrder, Name, Price, Active, ItemOrder, CatActive
+  sheet.appendRow([itemId, category, categoryOrder, name, price, 'Yes', itemOrder, 'Yes']);
+
   CacheService.getScriptCache().remove('MENU_JSON_V3');
   return { success: true };
 }

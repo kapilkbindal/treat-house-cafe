@@ -6,25 +6,43 @@
   <title>Menu Manager | Treat House Cafe</title>
   <link rel="manifest" href="../manifest.json">
   <style>
-    body { font-family: system-ui, sans-serif; background: #f8f4e9; margin: 0; padding: 20px; color: #333; }
-    .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-    h1 { margin: 0; font-size: 1.5em; }
-    button { cursor: pointer; padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; }
-    .btn-back { background: #64748b; color: white; }
-    .btn-save { background: #22c55e; color: white; }
+    :root {
+      --primary: #6F4E37;
+      --bg: #f8f4e9;
+      --card: #ffffff;
+      --text: #2c1810;
+      --border: #e5e7eb;
+      --success: #22c55e;
+    }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+    .container { max-width: 800px; margin: 10px auto; background: var(--card); padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #f8fafc; font-weight: 600; color: #475569; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+    h1 { margin: 0; font-size: 1.25rem; color: var(--primary); }
     
-    input[type="number"] { width: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-    input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #22c55e; }
+    button { cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: opacity 0.2s; }
+    button:hover { opacity: 0.8; }
+    .btn-back { background: #64748b; color: white; padding: 8px 12px; font-size: 0.9rem; }
+    .btn-add { background: var(--success); color: white; padding: 8px 12px; font-size: 0.9rem; margin-left: 10px; }
     
-    .category-row { background: #e2e8f0; font-weight: bold; color: #334155; }
-    .category-row td { padding-top: 15px; padding-bottom: 15px; }
-    .arrow-btn { background: none; border: 1px solid #cbd5e1; color: #334155; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px; }
-    .arrow-btn:hover { background: #cbd5e1; }
+    /* Menu List */
+    .menu-list { display: flex; flex-direction: column; gap: 10px; }
+    .category-group { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; }
+    .category-header { background: #f1f5f9; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: #334155; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+    .cat-controls { display: flex; align-items: center; gap: 6px; }
+
+    .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .item-row:last-child { border-bottom: none; }
+    .item-name { font-weight: 500; font-size: 0.95rem; }
+
+    .item-controls { display: flex; align-items: center; gap: 16px; }
+    .price-group { display: flex; align-items: center; gap: 4px; }
+    .price-input { width: 50px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size: 0.9rem; }
+    .btn-save-price { background: var(--success); color: white; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 14px; padding: 0; }
+
+    .seq-controls { display: flex; gap: 2px; }
+    .arrow-btn { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 10px; padding: 0; }
+    
     .loading { text-align: center; padding: 40px; color: #666; }
     
     /* Toast */
@@ -32,6 +50,38 @@
     #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
     @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
     @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+    /* Toggle Switch */
+    .switch { position: relative; display: inline-block; width: 34px; height: 20px; vertical-align: middle; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #22c55e; }
+    input:focus + .slider { box-shadow: 0 0 1px #22c55e; }
+    input:checked + .slider:before { transform: translateX(14px); }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .container { padding: 10px; margin: 5px; width: auto; }
+      .item-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .item-controls { width: 100%; justify-content: space-between; }
+      
+      header { flex-direction: column; align-items: flex-start; gap: 15px; }
+      header div { width: 100%; display: flex; gap: 10px; }
+      .btn-add { margin-left: 0; }
+      .btn-back, .btn-add { flex: 1; text-align: center; }
+    }
+
+    /* Modal */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal-content h3 { margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .modal-content label { display: block; margin-top: 12px; font-weight: 600; font-size: 0.9rem; color: #333; }
+    .modal-content input { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
+    .modal-actions { margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-secondary { background: #94a3b8; color: white; padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: var(--success); color: white; padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -39,11 +89,33 @@
 <div class="container">
   <header>
     <h1>Menu Manager</h1>
-    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+    <div>
+      <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+      <button class="btn-add" onclick="openAddModal()">+ Add Item</button>
+    </div>
   </header>
 
   <div id="menuContent">
     <div class="loading">Loading menu items...</div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div id="addModal" class="modal">
+  <div class="modal-content">
+    <h3>Add New Item</h3>
+    <label>Category</label>
+    <input type="text" id="newCategory" list="categoryList" placeholder="Select or type new category" oninput="handleCategoryInput(this)">
+    <datalist id="categoryList"></datalist>
+    <label>Item Name</label>
+    <input type="text" id="newItemName" list="itemList" placeholder="Item Name" oninput="handleItemNameInput(this)">
+    <datalist id="itemList"></datalist>
+    <label>Price (₹)</label>
+    <input type="number" id="newPrice" placeholder="0">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitAddItem()">Add Item</button>
+    </div>
   </div>
 </div>
 
@@ -89,38 +161,49 @@
 
     const sortedCats = Object.values(categories).sort((a, b) => a.order - b.order);
 
-    let html = '<table><thead><tr><th>Item Name</th><th>Price (₹)</th><th>Active</th><th>Sequence</th><th>Action</th></tr></thead><tbody>';
+    let html = '<div class="menu-list">';
     
     sortedCats.forEach((cat, catIndex) => {
-      // Category Header Row
       html += `
-        <tr class="category-row">
-          <td colspan="3">${cat.name}</td>
-          <td>
-            <button class="arrow-btn" onclick="moveCategory('${cat.name}', -1)">▲</button>
-            <button class="arrow-btn" onclick="moveCategory('${cat.name}', 1)">▼</button>
-            <span style="font-size:0.8em; color:#666; margin-left:5px">(${cat.order})</span>
-          </td>
-          <td></td>
-        </tr>`;
+        <div class="category-group">
+          <div class="category-header">
+            <span>${cat.name}</span>
+            <div class="cat-controls">
+              <label class="switch" title="Toggle Category Active">
+                <input type="checkbox" ${cat.items[0].categoryActive ? 'checked' : ''} onchange="toggleCategoryActive('${cat.name}', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <button class="arrow-btn" onclick="moveCategory('${cat.name}', -1)">▲</button>
+              <button class="arrow-btn" onclick="moveCategory('${cat.name}', 1)">▼</button>
+            </div>
+          </div>`;
 
       cat.items.sort((a, b) => a.itemOrder - b.itemOrder).forEach((item, itemIndex) => {
         html += `
-          <tr>
-            <td style="padding-left: 20px;">${item.name}</td>
-            <td><input type="number" id="price-${item.itemId}" value="${item.price}"></td>
-            <td><input type="checkbox" id="active-${item.itemId}" ${item.active ? 'checked' : ''}></td>
-            <td>
-              <button class="arrow-btn" onclick="moveItem('${item.itemId}', -1)">▲</button>
-              <button class="arrow-btn" onclick="moveItem('${item.itemId}', 1)">▼</button>
-              <span style="font-size:0.8em; color:#999; margin-left:5px">${item.itemOrder}</span>
-            </td>
-            <td><button class="btn-save" onclick="saveItem('${item.itemId}')">Save</button></td>
-          </tr>
+          <div class="item-row">
+            <div class="item-name">${item.name}</div>
+            <div class="item-controls">
+              <div class="price-group">
+                <input type="number" class="price-input" id="price-${item.itemId}" value="${item.price}">
+                <button class="btn-save-price" onclick="saveItem('${item.itemId}')">✓</button>
+              </div>
+              <div class="active-group">
+                <label class="switch" title="Toggle Active Status">
+                  <input type="checkbox" id="active-${item.itemId}" ${item.active ? 'checked' : ''} onchange="toggleActive('${item.itemId}', this.checked)">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="seq-controls">
+                <button class="arrow-btn" onclick="moveItem('${item.itemId}', -1)">▲</button>
+                <button class="arrow-btn" onclick="moveItem('${item.itemId}', 1)">▼</button>
+              </div>
+            </div>
+          </div>
         `;
       });
+      html += `</div>`;
     });
-    html += '</tbody></table>';
+    html += '</div>';
     document.getElementById('menuContent').innerHTML = html;
   }
 
@@ -171,6 +254,27 @@
     }
   };
 
+  window.toggleCategoryActive = async function(categoryName, isActive) {
+    try {
+      const res = await API.updateMenuCategory(categoryName, isActive);
+      if (res.success) {
+        showToast('Category status updated');
+        // Update local state for all items in this category
+        menuItems.forEach(item => {
+          if (item.category === categoryName) {
+            item.categoryActive = isActive;
+          }
+        });
+      } else {
+        alert('Failed: ' + res.message);
+        renderMenu(); // Revert UI on failure
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+      renderMenu();
+    }
+  };
+
   window.moveItem = async function(itemId, direction) {
     const item = menuItems.find(i => i.itemId === itemId);
     if (!item) return;
@@ -207,19 +311,116 @@
     }
   };
 
+  window.toggleActive = async function(itemId, isActive) {
+    try {
+      const res = await API.updateMenuItem({ itemId, active: isActive });
+      if (res.success) {
+        showToast('Status updated');
+        // Update local state
+        const item = menuItems.find(i => i.itemId === itemId);
+        if (item) item.active = isActive;
+      } else {
+        alert('Failed: ' + res.message);
+        document.getElementById(`active-${itemId}`).checked = !isActive;
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+      document.getElementById(`active-${itemId}`).checked = !isActive;
+    }
+  };
+
   window.saveItem = async function(itemId) {
     const price = Number(document.getElementById(`price-${itemId}`).value);
-    const active = document.getElementById(`active-${itemId}`).checked;
 
     const btn = document.querySelector(`button[onclick="saveItem('${itemId}')"]`);
-    const originalText = btn.textContent;
-    btn.textContent = '...';
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<span style="font-size:10px">...</span>';
     btn.disabled = true;
 
     try {
-      const res = await API.updateMenuItem({ itemId, price, active });
+      const res = await API.updateMenuItem({ itemId, price });
       if (res.success) {
-        showToast();
+        showToast('Price updated');
+      } else {
+        alert('Failed: ' + res.message);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      btn.innerHTML = originalContent;
+      btn.disabled = false;
+    }
+  };
+
+  window.openAddModal = function() {
+    // Clear datalists initially
+    document.getElementById('categoryList').innerHTML = '';
+    
+    document.getElementById('newCategory').value = '';
+    document.getElementById('newItemName').value = '';
+    document.getElementById('newPrice').value = '';
+    
+    document.getElementById('addModal').classList.add('active');
+  };
+
+  window.handleCategoryInput = function(el) {
+    const val = el.value.trim().toLowerCase();
+    const dl = document.getElementById('categoryList');
+    
+    if (!val) {
+      dl.innerHTML = ''; // Clear results if input is empty
+      return;
+    }
+
+    const uniqueCats = new Set(menuItems.map(i => i.category));
+    const matches = Array.from(uniqueCats).filter(c => c.toLowerCase().includes(val));
+    dl.innerHTML = matches.map(c => `<option value="${c}">`).join('');
+  };
+
+  window.handleItemNameInput = function(el) {
+    const val = el.value.trim().toLowerCase();
+    const dl = document.getElementById('itemList');
+    
+    if (!val) {
+      dl.innerHTML = ''; // Clear results if input is empty
+      return;
+    }
+
+    const uniqueNames = new Set(menuItems.map(i => i.name));
+    const matches = Array.from(uniqueNames).filter(n => n.toLowerCase().includes(val));
+    dl.innerHTML = matches.map(n => `<option value="${n}">`).join('');
+  };
+
+  window.closeAddModal = function() {
+    document.getElementById('addModal').classList.remove('active');
+  };
+
+  window.submitAddItem = async function() {
+    const category = document.getElementById('newCategory').value.trim();
+    const name = document.getElementById('newItemName').value.trim();
+    const price = document.getElementById('newPrice').value;
+
+    if (!category || !name || !price) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    if (menuItems.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+      alert('Item with this name already exists!');
+      return;
+    }
+
+    const btn = document.querySelector('#addModal .btn-primary');
+    const originalText = btn.textContent;
+    btn.textContent = 'Adding...';
+    btn.disabled = true;
+
+    try {
+      const res = await API.addMenuItem({ category, name, price });
+      if (res.success) {
+        showToast('Item added successfully');
+        closeAddModal();
+        init(); // Reload menu
       } else {
         alert('Failed: ' + res.message);
       }
@@ -231,8 +432,9 @@
     }
   };
 
-  function showToast() {
+  function showToast(msg = 'Saved!') {
     const x = document.getElementById("toast");
+    x.textContent = msg;
     x.className = "show";
     setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
   }
