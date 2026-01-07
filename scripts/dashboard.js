@@ -294,7 +294,7 @@ function getActions(o) {
     if (status !== 'CLOSED') {
       buttons.push(`<button onclick="cancelOrder('${o['Order ID']}', this)" style="background:#ef4444">Cancel</button>`);
       buttons.push(`<button onclick="openEditOrder('${o['Order ID']}')" style="background:#f59e0b">Edit</button>`);
-      buttons.push(`<button onclick="openAddItems('${o['Order ID']}')" style="background:#22c55e">Add Items</button>`);
+      buttons.push(`<button onclick="openAddItems('${o['Order ID']}', this)" style="background:#22c55e">Add Items</button>`);
     }
     
     if (['SERVED', 'HANDED_OVER', 'DELIVERED'].includes(status)) {
@@ -555,9 +555,7 @@ window.removeEditItem = function(index) {
 
 window.submitEditOrder = async function() {
   const btn = document.querySelector('#editOrderModal button[onclick="submitEditOrder()"]');
-  const originalText = btn.textContent;
-  btn.textContent = 'Saving...';
-  btn.disabled = true;
+  if (btn) btn.classList.add('loading');
 
   try {
     await API.editOrder(editOrderData['Order ID'], editOrderData.items);
@@ -571,148 +569,16 @@ window.submitEditOrder = async function() {
   } catch (err) {
     alert('Failed to save order: ' + err.message);
   } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
+    if (btn) btn.classList.remove('loading');
   }
 };
 
 /* -----------------------------
    ADD ITEMS LOGIC
 ----------------------------- */
-let newItemsToAdd = [];
-let currentAddOrderId = null;
-
-window.openAddItems = async function(orderId) {
-  const order = allOrders.find(o => o['Order ID'] === orderId);
-  if (!order) return;
-
-  if (['CLOSED', 'CANCELLED'].includes(order['Order Status'])) {
-    return alert('Closed and Cancelled orders cannot be modified.');
-  }
-
-  currentAddOrderId = orderId;
-  newItemsToAdd = []; // Reset list
-  document.getElementById('addItemsOrderId').textContent = orderId;
-  renderAddItems();
-  document.getElementById('addItemsModal').classList.remove('hidden');
-
-  // Load menu if needed
-  if (!menuItemsCache) {
-    try {
-      menuItemsCache = await API.getMenu();
-    } catch (e) {
-      alert('Failed to load menu for adding items');
-      return;
-    }
-  }
-  populateAddItemsSelect();
-};
-
-function populateAddItemsSelect() {
-  const datalist = document.getElementById('addItemsDatalist');
-  if (!datalist || !menuItemsCache) return;
-
-  const sorted = [...menuItemsCache].sort((a, b) => a.name.localeCompare(b.name));
-  datalist.innerHTML = sorted.map(i => `<option value="${i.name}">₹${i.price}</option>`).join('');
-}
-
-window.addItemToAddList = function() {
-  const input = document.getElementById('addItemsInput');
-  const val = input.value;
-  if (!val) return;
-
-  const item = menuItemsCache.find(i => i.name === val);
-  if (!item) {
-    return alert('Please select a valid item from the list');
-  }
-
-  // Always create a new line item for "Add" flow
-  const order = allOrders.find(o => o['Order ID'] === currentAddOrderId);
-  const newItemStatus = (order && order['Order Status'] === 'OPEN') ? 'OPEN' : 'PREPARING';
-
-  // Check if already in the *new* list to merge qty there
-  const existing = newItemsToAdd.find(i => i.itemId === item.itemId);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    newItemsToAdd.push({
-      itemId: item.itemId,
-      name: item.name,
-      price: item.price,
-      qty: 1,
-      status: newItemStatus
-    });
-  }
-  renderAddItems();
-  input.value = '';
-};
-
-function renderAddItems() {
-  const container = document.getElementById('addItemsList');
-  if (newItemsToAdd.length === 0) {
-    container.innerHTML = '<div style="color:#999; text-align:center; padding:10px">No items added yet</div>';
-    return;
-  }
-  container.innerHTML = newItemsToAdd.map((item, index) => {
-    return `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #eee">
-        <div style="flex:1">
-          <div style="font-weight:600">${item.name}</div>
-          <div style="font-size:0.8em; color:#666">₹${item.price}</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:4px">
-          <button onclick="updateAddQty(${index}, ${item.qty - 1})" style="padding:6px 10px; background:#e5e7eb; border:none; border-radius:4px; cursor:pointer; font-weight:bold">-</button>
-          <input type="number" value="${item.qty}" min="1" onchange="updateAddQty(${index}, this.value)" style="width:50px; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center">
-          <button onclick="updateAddQty(${index}, ${item.qty + 1})" style="padding:6px 10px; background:#e5e7eb; border:none; border-radius:4px; cursor:pointer; font-weight:bold">+</button>
-          <button onclick="removeAddItem(${index})" style="padding:6px 10px; background:#ef4444; color:white; border:none; border-radius:4px; margin-left:4px">🗑️</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-window.updateAddQty = function(index, val) {
-  let qty = parseInt(val);
-  if (isNaN(qty) || qty < 1) qty = 1;
-  newItemsToAdd[index].qty = qty;
-  renderAddItems();
-};
-
-window.removeAddItem = function(index) {
-  newItemsToAdd.splice(index, 1);
-  renderAddItems();
-};
-
-window.submitAddItems = async function() {
-  if (newItemsToAdd.length === 0) return;
-  
-  const order = allOrders.find(o => o['Order ID'] === currentAddOrderId);
-  if (!order) return;
-
-  // Merge existing items + new items
-  // This preserves existing items exactly as they are (status, qty) and appends new ones
-  const finalItems = [...order.items, ...newItemsToAdd];
-
-  const btn = document.querySelector('#addItemsModal button[onclick="submitAddItems()"]');
-  const originalText = btn.textContent;
-  btn.textContent = 'Saving...';
-  btn.disabled = true;
-
-  try {
-    await API.editOrder(currentAddOrderId, finalItems);
-
-    // Recalculate status based on the new item list
-    await determineDerivedStatus(finalItems, currentAddOrderId, order['Order Status']);
-
-    document.getElementById('addItemsModal').classList.add('hidden');
-    
-    setTimeout(loadOrders, 500);
-  } catch (err) {
-    alert('Failed to save order: ' + err.message);
-  } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
-  }
+window.openAddItems = function(orderId, btn) {
+  if (btn) btn.classList.add('loading');
+  window.location.href = `order.html?mode=staff&orderId=${orderId}`;
 };
 
 /* -----------------------------
@@ -772,9 +638,7 @@ window.submitCloseOrder = async function(shouldPrint = false) {
 
   // UI Feedback
   const btn = document.querySelector(`#closeModal button[onclick="submitCloseOrder(${shouldPrint})"]`);
-  const oldText = btn.textContent;
-  btn.textContent = 'Processing...';
-  btn.disabled = true;
+  if (btn) btn.classList.add('loading');
 
   try {
     await API.closeOrder({
@@ -797,8 +661,7 @@ window.submitCloseOrder = async function(shouldPrint = false) {
   } catch (err) {
     alert('Failed to close order: ' + err.message);
   } finally {
-    btn.textContent = oldText;
-    btn.disabled = false;
+    if (btn) btn.classList.remove('loading');
   }
 };
 
@@ -896,7 +759,7 @@ function checkAuth() {
 
   document.getElementById('roleInfo').innerHTML = `
     ${currentUser.name} (${role.toUpperCase()}) 
-    <button onclick="window.location.href='dashboard-order.html?mode=staff'" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer">New Order</button>
+    <button onclick="window.location.href='order.html?mode=staff'" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer">New Order</button>
     <button onclick="document.getElementById('passwordModal').classList.remove('hidden')" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer">Password</button>
     <button onclick="logout()" style="font-size:0.8em; padding:4px 8px; margin-left:8px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer">Logout</button>
   `;

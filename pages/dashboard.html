@@ -212,6 +212,16 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* Add Item Modal Menu Styles */
+    .add-menu-category { margin-bottom: 20px; }
+    .add-menu-category h4 { margin: 0 0 10px 0; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+    .add-menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+    .add-menu-item { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; background: #fff; display: flex; flex-direction: column; height: 100%; box-sizing: border-box; }
+    .add-menu-item-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; font-weight: 600; line-height: 1.2; }
+    .add-menu-controls { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+    .add-qty-btn { width: 28px; height: 28px; border-radius: 4px; border: 1px solid #cbd5e1; background: #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #334155; padding: 0; }
+    .add-qty-val { font-weight: 600; font-size: 0.9em; width: 24px; text-align: center; }
   </style>
   <style>
     /* Login Overlay */
@@ -300,19 +310,25 @@
 
 <!-- ADD ITEMS MODAL -->
 <div id="addItemsModal" class="modal hidden">
-  <div class="modal-content" style="max-width: 500px;">
-    <h3>Add Items <span id="addItemsOrderId" style="font-weight:400; color:#666; font-size:0.8em"></span></h3>
-    <div style="display:flex; gap:8px; margin-bottom:12px">
-      <input type="text" id="addItemsInput" list="addItemsDatalist" placeholder="Type to search item..." style="margin:0; flex:1; padding:10px; border:1px solid #ccc; border-radius:6px">
-      <datalist id="addItemsDatalist"></datalist>
-      <button onclick="addItemToAddList()" style="background:#22c55e; color:white; margin:0">Add</button>
+  <div class="modal-content" style="max-width: 900px; width: 95%; height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+    <div style="padding: 16px; border-bottom: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background: #fff;">
+      <h3 style="margin:0">Add Items <span id="addItemsOrderId" style="font-weight:400; color:#666; font-size:0.8em"></span></h3>
+      <button onclick="closeAddItemsModal()" style="background:none; border:none; font-size:1.5em; cursor:pointer; color:#64748b;">&times;</button>
     </div>
-    <div id="addItemsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
-      <!-- New Items injected here -->
+    
+    <div id="addMenuContainer" style="flex: 1; overflow-y: auto; padding: 16px; background: #f8fafc;">
+      <!-- Menu injected here -->
     </div>
-    <div class="actions" style="justify-content: flex-end;">
-      <button onclick="document.getElementById('addItemsModal').classList.add('hidden')" style="background:#94a3b8; color:white">Cancel</button>
-      <button onclick="submitAddItems()" style="background:#22c55e; color:white">Confirm Add</button>
+
+    <div style="padding: 16px; border-top: 1px solid #e2e8f0; background: #fff; box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.1);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <span id="addCartCount" style="font-weight:600; color:#334155">0 items selected</span>
+        <span id="addCartTotal" style="font-weight:800; font-size:1.2em; color:#0f172a">₹0</span>
+      </div>
+      <div class="actions" style="justify-content: flex-end; margin:0">
+        <button onclick="closeAddItemsModal()" style="background:#94a3b8; color:white">Cancel</button>
+        <button onclick="submitAddItems()" id="btnAddConfirm" style="background:#22c55e; color:white" disabled>Confirm Add</button>
+      </div>
     </div>
   </div>
 </div>
