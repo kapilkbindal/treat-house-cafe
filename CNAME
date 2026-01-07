@@ -1,1 +1,5 @@
-treathousecafe.in
+Type: CNAME
+Name: www
+Target: treathousecafe.in
+TTL: Auto
+Proxy: ON (orange cloud)
